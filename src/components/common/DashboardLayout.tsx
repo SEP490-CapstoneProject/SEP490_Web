@@ -1,18 +1,15 @@
-import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
+import { Sidebar } from "./Sidebar";
+import { Outlet } from "react-router-dom";
 
-interface Props {
-  children: React.ReactNode;
-}
-
-export function DashboardLayout({ children }: Props) {
+export function DashboardLayout() {
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
       <Sidebar />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header />
-        <main className="p-6">
-          {children}
+        <main className="flex-1 overflow-y-auto p-6">
+          <Outlet /> 
         </main>
       </div>
     </div>
