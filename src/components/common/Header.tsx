@@ -17,7 +17,7 @@ export function Header() {
     <header className="h-20 border-b border-slate-100 bg-white dark:bg-slate-900 px-8 flex items-center justify-between transition-colors sticky top-0 z-50">
       
       {/* 1. Logo Section (Bên trái) */}
-      <div className="flex items-center gap-2 min-w-[150px]">
+      <div className="flex items-center gap-2 min-w-37.5">
         <img 
           src="/product-logo.png" 
           alt="SkillSnap" 
@@ -54,7 +54,7 @@ export function Header() {
       </nav>
 
       {/* 3. User Section (Bên phải) */}
-      <div className="flex items-center justify-end min-w-[150px]">
+      <div className="flex items-center justify-end min-w-37.5">
         <div className="flex items-center gap-4 cursor-pointer group p-1 pr-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
           <Avatar className="h-10 w-10 border-2 border-white dark:border-slate-700 shadow-sm group-hover:ring-4 group-hover:ring-blue-500/10 transition-all">
             <AvatarImage src="https://github.com/shadcn.png" alt="User" />

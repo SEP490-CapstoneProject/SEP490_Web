@@ -29,7 +29,7 @@ export default function LoginPage() {
 
       {/* Main Content */}
       <main className="grow flex items-center justify-center p-1">
-        <Card className="w-full max-w-5xl overflow-hidden flex flex-col lg:flex-row min-h-[650px] border-slate-100 dark:border-slate-800 shadow-2xl">
+        <Card className="w-full max-w-5xl overflow-hidden flex flex-col lg:flex-row min-h-162.5 border-slate-100 dark:border-slate-800 shadow-2xl">
           
           {/* Ảnh bên trái */}
           <div className="hidden lg:flex lg:w-1/2 bg-[#F0DBBA] dark:bg-yellow-900/10 relative items-center justify-center overflow-hidden">
