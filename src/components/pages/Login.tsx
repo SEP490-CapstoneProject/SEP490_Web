@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-slate-50 transition-colors duration-300">
       {/* Header */}
       <header className="w-full px-6 py-2 flex justify-between items-center bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-2">
@@ -37,7 +37,7 @@ export default function LoginPage() {
             <img
               src={LoginPlaceholder}
               alt="Illustration"
-              className="z-10 w-4/5 h-auto object-contain transition-all duration-500 animate-in fade-in zoom-in duration-700"
+              className="z-10 w-full h-auto object-contain transition-all duration-500 animate-in fade-in zoom-in duration-700"
             />
           </div>
 
