@@ -1,4 +1,4 @@
-import { Home, Users, MessageSquare } from "lucide-react";
+import { Home, Users, MessageSquare, Bell } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useLocation, Link } from "react-router-dom";
@@ -11,6 +11,7 @@ export function Header() {
     { icon: Home, label: "Trang chủ", href: "/dashboard/portfolio" },
     { icon: Users, label: "Cộng đồng", href: "/dashboard/community" },
     { icon: MessageSquare, label: "Tin nhắn", href: "/dashboard/messages" },
+    { icon: Bell, label: "Thông báo", href: "/dashboard/notifications" },
   ];
 
   return (
