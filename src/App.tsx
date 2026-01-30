@@ -4,7 +4,7 @@ import { WebLayout } from "./components/common/WebLayout";
 import ProfilePage from "./components/pages/portfolio/Profile";
 import PortfolioManagement from "./components/pages/portfolio/PortfolioManagement";
 import EmptyPortfolioPage from "./components/pages/portfolio/EmptyPortfolio";
-
+import TalentHome from "./components/pages/talent/TalentHome";
 function App() {
   return (
     <Router>
@@ -12,6 +12,7 @@ function App() {
         {/* Route trang Login tách biệt hoàn toàn */}
         <Route path="/" element={<LoginPage />} />{" "}
         <Route element={<WebLayout />}>
+          <Route path="talent-home" element={<TalentHome />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/portfolioManagement" element={<PortfolioManagement />} />
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />

@@ -8,10 +8,10 @@ export function Header() {
 
   // Danh sách các tab điều hướng trung tâm
   const navItems = [
-    { icon: Home, label: "Trang chủ", href: "/dashboard/portfolio" },
-    { icon: Users, label: "Cộng đồng", href: "/dashboard/community" },
-    { icon: MessageSquare, label: "Tin nhắn", href: "/dashboard/messages" },
-    { icon: Bell, label: "Thông báo", href: "/dashboard/notifications" },
+    { icon: Home, label: "Trang chủ", href: "/talent-home" },
+    { icon: Users, label: "Hồ sơ", href: "/profile" },
+    { icon: MessageSquare, label: "Danh mục", href: "/portfolioManagement" },
+    { icon: Bell, label: "Portfolio trống", href: "/emptyPortfolio" },
   ];
 
   return (
