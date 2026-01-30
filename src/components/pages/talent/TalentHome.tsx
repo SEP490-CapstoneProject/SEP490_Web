@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import TestImage from "../../../assets/testImage/testImage.png";
 import ConnectIcon from "../../../assets/myWeb/connect.png";
 import BookmarkIcon from "../../../assets/myWeb/bookmark.png";
@@ -12,6 +13,7 @@ import { mockCompanyPosts } from "../../../data/mockCompanyPost";
 
 export default function TalentHome() {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const navigate = useNavigate();
   const currentPost = mockCompanyPosts[currentIndex];
 
   const handleNext = () => {
@@ -24,6 +26,10 @@ export default function TalentHome() {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
     }
+  };
+
+  const handleViewDetails = () => {
+    navigate(`/job/${currentPost.postId}`);
   };
 
   return (
@@ -120,7 +126,10 @@ export default function TalentHome() {
           <div className="absolute bottom-0 left-0 right-0 px-6 pb-6 pt-0.5">
             {/* View Details Button */}
             <div className="flex justify-center">
-              <button className="flex items-center justify-center gap-2 bg-transparent border-2 border-white hover:bg-white hover:bg-opacity-10 transition-colors px-8 py-3 rounded-lg border-2 text-white font-medium w-56">
+              <button 
+                onClick={handleViewDetails}
+                className="flex items-center justify-center gap-2 bg-transparent border-2 border-white hover:bg-white hover:bg-opacity-10 transition-colors px-8 py-3 rounded-lg border-2 text-white font-medium w-56"
+              >
                 <span>Xem chi tiết</span>
                 <img src={ArrowIcon} alt="Arrow" className="w-8 h-8" />
               </button>

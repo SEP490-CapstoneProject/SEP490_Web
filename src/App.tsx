@@ -5,6 +5,7 @@ import ProfilePage from "./components/pages/portfolio/Profile";
 import PortfolioManagement from "./components/pages/portfolio/PortfolioManagement";
 import EmptyPortfolioPage from "./components/pages/portfolio/EmptyPortfolio";
 import TalentHome from "./components/pages/talent/TalentHome";
+import { PostDetail } from "./components/pages/talent/PostDetail";
 function App() {
   return (
     <Router>
@@ -13,6 +14,7 @@ function App() {
         <Route path="/" element={<LoginPage />} />{" "}
         <Route element={<WebLayout />}>
           <Route path="talent-home" element={<TalentHome />} />
+          <Route path="/job/:postId" element={<PostDetail />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/portfolioManagement" element={<PortfolioManagement />} />
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
