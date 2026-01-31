@@ -6,6 +6,8 @@ import PortfolioManagement from "./components/pages/portfolio/PortfolioManagemen
 import EmptyPortfolioPage from "./components/pages/portfolio/EmptyPortfolio";
 import TalentHome from "./components/pages/talent/TalentHome";
 import { PostDetail } from "./components/pages/talent/PostDetail";
+import CommunityPost from "./components/pages/community/CommunityPost";
+import CommunityPostDetail from "./components/pages/community/CommunityPostDetail";
 function App() {
   return (
     <Router>
@@ -18,6 +20,8 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/portfolioManagement" element={<PortfolioManagement />} />
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
+          <Route path="/community" element={<CommunityPost />} />
+          <Route path="/community/:id" element={<CommunityPostDetail />} />
         </Route>
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
