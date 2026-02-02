@@ -149,7 +149,7 @@ export const PostDetail = () => {
           {/* Right Column - Job Info & Apply */}
           <div className="col-span-1">
             {/* Info Card */}
-            <div className="bg-white rounded-lg p-6 shadow-sm sticky top-24">
+            <div className="bg-white rounded-lg p-6 shadow-sm top-24">
               <div className="space-y-4">
                 {/* Salary */}
                 <div>

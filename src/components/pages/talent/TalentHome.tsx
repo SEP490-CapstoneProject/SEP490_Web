@@ -45,7 +45,7 @@ export default function TalentHome() {
         </button>
 
         {/* Card Container */}
-        <div className="relative w-115 h-185 rounded-2xl overflow-hidden shadow-lg">
+        <div className="relative w-125 h-205 rounded-2xl overflow-hidden shadow-lg">
           {/* Background Image */}
           <img 
             src={TestImage} 
