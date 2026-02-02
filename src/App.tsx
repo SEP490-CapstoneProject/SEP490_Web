@@ -24,12 +24,9 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/portfolioManagement" element={<PortfolioManagement />} />
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
-<<<<<<< HEAD
           <Route path="/community" element={<CommunityPost />} />
           <Route path="/community/:id" element={<CommunityPostDetail />} />
-=======
           <Route path="/portfolio/:id" element={<PortfolioViewPage />} />
->>>>>>> thinh
         </Route>
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
