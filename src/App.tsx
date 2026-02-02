@@ -6,6 +6,7 @@ import PortfolioManagement from "./components/pages/portfolio/PortfolioManagemen
 import EmptyPortfolioPage from "./components/pages/portfolio/EmptyPortfolio";
 import TalentHome from "./components/pages/talent/TalentHome";
 import { PostDetail } from "./components/pages/talent/PostDetail";
+import PortfolioViewPage from "./components/pages/portfolio/PortfolioViewPage";
 function App() {
   return (
     <Router>
@@ -18,6 +19,7 @@ function App() {
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/portfolioManagement" element={<PortfolioManagement />} />
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
+          <Route path="/portfolio/:id" element={<PortfolioViewPage />} />
         </Route>
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
