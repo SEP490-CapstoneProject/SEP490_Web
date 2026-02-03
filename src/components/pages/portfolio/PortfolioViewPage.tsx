@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Portfolio, mockPortfolio, mockBlockData } from '@/services/portfolio.api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import shareIcon from '@/assets/myWeb/share1.png';
+import { PortfolioResponse, portfolioService } from '@/services/portfolio.api';
 import PortfolioRenderer from '@/components/portfolio/render/PortfolioRenderer';
 
 const PortfolioViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const navigate = useNavigate();
+  const [portfolio, setPortfolio] = useState<PortfolioResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -14,26 +17,12 @@ const PortfolioViewPage: React.FC = () => {
       try {
         setLoading(true);
 
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        // Mock: Fetch portfolio by ID
-        // In real app, replace with actual API call
         if (!id) {
           throw new Error('Portfolio ID is required');
         }
 
-        const portfolioId = parseInt(id, 10);
-
-        // For demo: return mockPortfolio if ID matches
-        if (portfolioId === mockPortfolio.id) {
-          setPortfolio(mockPortfolio);
-        } else {
-          // Try to find or return mock data
-          console.warn(`Portfolio ${portfolioId} not found in mock data, showing default`);
-          setPortfolio(mockPortfolio);
-        }
-
+        const data = await portfolioService.fetchPortfolioById();
+        setPortfolio(data);
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load portfolio');
@@ -47,7 +36,11 @@ const PortfolioViewPage: React.FC = () => {
     fetchPortfolio();
   }, [id]);
 
-  // Loading state
+  const handleShare = () => {
+    // Placeholder for share functionality
+    console.log('Share portfolio');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -59,7 +52,6 @@ const PortfolioViewPage: React.FC = () => {
     );
   }
 
-  // Error state
   if (error || !portfolio) {
     return (
       <div className="flex items-center justify-center min-h-screen p-4">
@@ -79,10 +71,35 @@ const PortfolioViewPage: React.FC = () => {
     );
   }
 
-  // Render portfolio
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <PortfolioRenderer portfolio={portfolio} blockDataMap={mockBlockData} />
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-full px-6 py-4 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="appearance-none border-none bg-transparent p-0 text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
+            title="Quay về"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-xl font-bold text-gray-900">Hồ sơ cá nhân</h1>
+          <button
+            onClick={handleShare}
+            className="appearance-none border-none bg-transparent p-0 text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
+            title="Chia sẻ"
+          >
+            <img src={shareIcon} alt="Share" className="w-6 h-6 brightness-0" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <PortfolioRenderer blocks={portfolio.blocks} />
+        </div>
+      </div>
     </div>
   );
 };
