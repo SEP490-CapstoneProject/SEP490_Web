@@ -10,10 +10,15 @@ import ClockIcon from "../../../assets/myWeb/clock.png";
 import ArrowIcon from "../../../assets/myWeb/upper-right-arrow.png";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { mockCompanyPosts } from "../../../data/mockCompanyPost";
-
+import SortIcon from "../../../assets/myWeb/sort.png";
 export default function TalentHome() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const navigate = useNavigate();
+  const [filters, setFilters] = useState({
+    position: '',
+    experience: '',
+    location: ''
+  });
   const currentPost = mockCompanyPosts[currentIndex];
 
   const handleNext = () => {
@@ -32,20 +37,87 @@ export default function TalentHome() {
     navigate(`/job/${currentPost.postId}`);
   };
 
-  return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-50">
-      <div className="flex items-center justify-center gap-8">
-        {/* Left Arrow */}
-        <button 
-          onClick={handlePrev}
-          disabled={currentIndex === 0}
-          className="p-2 rounded-full hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronLeft size={32} className="text-slate-600" />
-        </button>
+  const handleApplyFilter = () => {
+    // Xử lý áp dụng bộ lọc
+    console.log('Applied filters:', filters);
+  };
 
-        {/* Card Container */}
-        <div className="relative w-125 h-205 rounded-2xl overflow-hidden shadow-lg">
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Main Content with Filter on Left */}
+      <div className="flex gap-0 pt-10 min-h-screen ">
+        {/* Left Filter Sidebar - Attached to left edge */}
+        <div className ="fixed left-3 h-screen  ">
+          <div className="w-89 bg-white rounded-lg p-6 shadow-md h-fit items-start ml-2 ">
+            <div className="flex items-center gap-2 mb-6">
+              <img src={SortIcon} alt="Sort" className="w-8 h-8"/>
+              <h2 className="text-2xl font-bold text-gray-900">Bộ lọc tìm việc</h2>
+            </div>
+            <div className="space-y-4">
+              {/* Position Filter */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 mb-2 block">Vị trí công việc</label>
+                <input
+                  type="text"
+                  placeholder="Nhập vị trí..."
+                  value={filters.position}
+                  onChange={(e) => setFilters({...filters, position: e.target.value})}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                  style={{ backgroundColor: '#EFF6FF' }}
+                />
+              </div>
+
+              {/* Experience Filter */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 mb-2 block">Kinh nghiệm yêu cầu</label>
+                <input
+                  type="text"
+                  placeholder="Nhập kinh nghiệm..."
+                  value={filters.experience}
+                  onChange={(e) => setFilters({...filters, experience: e.target.value})}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                  style={{ backgroundColor: '#EFF6FF' }}
+                />
+              </div>
+
+              {/* Location Filter */}
+              <div>
+                <label className="text-sm font-bold text-gray-700 mb-2 block">Địa điểm làm việc</label>
+                <input
+                  type="text"
+                  placeholder="Địa điểm làm việc..."
+                  value={filters.location}
+                  onChange={(e) => setFilters({...filters, location: e.target.value})}
+                  className="w-full px-3 py-2 rounded-lg border border-gray-300"
+                  style={{ backgroundColor: '#EFF6FF' }}
+                />
+              </div>
+
+              {/* Apply Filter Button */}
+              <button
+                onClick={handleApplyFilter}
+                className="w-full mt-6 py-2 rounded-lg font-semibold text-white"
+                style={{ backgroundColor: '#3B82F6' }}
+              >
+                Áp dụng bộ lọc
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Content - Centered in remaining space */}
+        <div className="flex-1 flex items-center justify-center gap-8">
+          {/* Left Arrow */}
+          <button 
+            onClick={handlePrev}
+            disabled={currentIndex === 0}
+            className="p-2 rounded-full hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronLeft size={32} className="text-slate-600" />
+          </button>
+
+          {/* Card Container */}
+          <div className="relative w-125 h-205 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
           {/* Background Image */}
           <img 
             src={TestImage} 
@@ -137,14 +209,15 @@ export default function TalentHome() {
           </div>
         </div>
 
-        {/* Right Arrow */}
-        <button 
-          onClick={handleNext}
-          disabled={currentIndex === mockCompanyPosts.length - 1}
-          className="p-2 rounded-full hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <ChevronRight size={32} className="text-slate-600" />
-        </button>
+          {/* Right Arrow */}
+          <button 
+            onClick={handleNext}
+            disabled={currentIndex === mockCompanyPosts.length - 1}
+            className="p-2 rounded-full hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ChevronRight size={32} className="text-slate-600" />
+          </button>
+        </div>
       </div>
     </div>
   );

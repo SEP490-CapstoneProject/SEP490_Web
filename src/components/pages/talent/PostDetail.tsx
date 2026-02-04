@@ -42,7 +42,7 @@ export const PostDetail = () => {
               onClick={() => setIsSaved(!isSaved)}
               className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400"
             >
-              <img src={BookmarkIcon} alt="Bookmark" className="w-5 h-5" style={{ filter: 'invert(48%) sepia(75%) saturate(733%) hue-rotate(205deg)' }} />
+              <img src={BookmarkIcon} alt="Bookmark" className="w-5 h-5" style={{ filter: 'brightness(0) saturate(100%) invert(48%) sepia(81%) saturate(1093%) hue-rotate(203deg)' }} />
               <span>Lưu tin</span>
             </button>
             <button className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400">
