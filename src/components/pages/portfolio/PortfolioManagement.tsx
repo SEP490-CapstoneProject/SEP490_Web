@@ -17,14 +17,20 @@ import { PortfolioMainBlockItem, portfolioService } from "@/services/portfolio.a
 const ProfileCard = ({
   data,
   onViewDetail,
+  isPrimary,
+  onSetPrimary,
+  onUnsetPrimary,
 }: {
   data: PortfolioMainBlockItem;
   onViewDetail: (portfolioId: number) => void;
+  isPrimary: boolean;
+  onSetPrimary: (portfolioId: number) => void;
+  onUnsetPrimary: (portfolioId: number) => void;
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const { fullName, title, email, phone, avatar } = data.blocks.data;
-  const statusLabel = data.portfolio.status === 1 ? "Đang dùng" : "Bản nháp";
-  const status = data.portfolio.status === 1 ? "active" : "draft";
+  const statusLabel = isPrimary ? "Đang dùng" : "Bản nháp";
+  const status = isPrimary ? "active" : "draft";
 
   return (
     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow relative group">
@@ -57,6 +63,30 @@ const ProfileCard = ({
 
               {/* function button */}
               <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-20 py-2 overflow-hidden animate-in fade-in zoom-in duration-200">
+                {isPrimary ? (
+                  <button
+                    onClick={() => {
+                      onUnsetPrimary(data.portfolioId);
+                      setShowMenu(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 cursor-pointer"
+                    style={{ backgroundColor: '#DCFCE7', color: '#1B8442' }}
+                  >
+                     Hủy bản chính
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      onSetPrimary(data.portfolioId);
+                      setShowMenu(false);
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 cursor-pointer"
+                    style={{ backgroundColor: '#DCFCE7', color: '#1B8442' }}
+                  >
+                    <Edit3 size={14} /> Đặt làm bản chính
+                  </button>
+                )}
+                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
                 <button
                   onClick={() => {
                     onViewDetail(data.portfolioId);
@@ -68,14 +98,15 @@ const ProfileCard = ({
                 </button>
                 <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
                   <Edit3 size={14} /> Chỉnh sửa
-                </button>
-                <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
-                  <Share2 size={14} /> Chia sẻ
-                </button>
-                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                </button> 
                 <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">
-                  <Trash2 size={14} /> Xóa hồ sơ
+                  <Trash2 size={14} /> Xóa 
                 </button>
+                
+                <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+                  <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
+                    <Share2 size={14} /> Chia sẻ
+                  </button>
               </div>
             </>
           )}
@@ -123,6 +154,7 @@ export default function ProfileManagement() {
   const navigate = useNavigate();
   const [portfolios, setPortfolios] = useState<PortfolioMainBlockItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [primaryPortfolioId, setPrimaryPortfolioId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchPortfolios = async () => {
@@ -131,6 +163,10 @@ export default function ProfileManagement() {
         const userId = 2; // Mock user ID
         const data = await portfolioService.fetchMainPortfoliosManagerByUser(userId);
         setPortfolios(data);
+        // Đặt portfolio đầu tiên là bản chính mặc định
+        if (data.length > 0) {
+          setPrimaryPortfolioId(data[0].portfolioId);
+        }
       } catch (error) {
         console.error("Error fetching portfolios:", error);
       } finally {
@@ -143,6 +179,14 @@ export default function ProfileManagement() {
 
   const handleViewDetail = (portfolioId: number) => {
     navigate(`/portfolio/${portfolioId}`);
+  };
+
+  const handleSetPrimary = (portfolioId: number) => {
+    setPrimaryPortfolioId(portfolioId);
+  };
+
+  const handleUnsetPrimary = (portfolioId: number) => {
+    setPrimaryPortfolioId(null);
   };
 
   return (
@@ -180,6 +224,9 @@ export default function ProfileManagement() {
                   key={portfolio.portfolioId}
                   data={portfolio}
                   onViewDetail={handleViewDetail}
+                  isPrimary={primaryPortfolioId === portfolio.portfolioId}
+                  onSetPrimary={handleSetPrimary}
+                  onUnsetPrimary={handleUnsetPrimary}
                 />
               ))}
             </div>

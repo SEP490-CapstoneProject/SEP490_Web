@@ -19,10 +19,12 @@ export default function TalentHome() {
     experience: '',
     location: ''
   });
-  const currentPost = mockCompanyPosts[currentIndex];
+  const [filteredPosts, setFilteredPosts] = useState(mockCompanyPosts);
+  const [isLoading, setIsLoading] = useState(false);
+  const currentPost = filteredPosts[currentIndex];
 
   const handleNext = () => {
-    if (currentIndex < mockCompanyPosts.length - 1) {
+    if (currentIndex < filteredPosts.length - 1) {
       setCurrentIndex(currentIndex + 1);
     }
   };
@@ -38,8 +40,49 @@ export default function TalentHome() {
   };
 
   const handleApplyFilter = () => {
-    // Xử lý áp dụng bộ lọc
-    console.log('Applied filters:', filters);
+    setIsLoading(true);
+    
+    // Simulate loading effect
+    setTimeout(() => {
+      let results = mockCompanyPosts;
+
+      // Lọc theo vị trí công việc
+      if (filters.position.trim()) {
+        results = results.filter(post =>
+          post.position.toLowerCase().includes(filters.position.toLowerCase())
+        );
+      }
+
+      // Lọc theo kinh nghiệm yêu cầu
+      if (filters.experience.trim()) {
+        const expValue = parseInt(filters.experience);
+        if (!isNaN(expValue)) {
+          results = results.filter(post => post.experienceYear <= expValue);
+        }
+      }
+
+      // Lọc theo địa điểm làm việc
+      if (filters.location.trim()) {
+        results = results.filter(post =>
+          post.address.toLowerCase().includes(filters.location.toLowerCase())
+        );
+      }
+
+      setFilteredPosts(results);
+      setCurrentIndex(0); // Reset về công việc đầu tiên trong danh sách lọc
+      setIsLoading(false);
+      console.log('Applied filters:', filters, 'Results:', results.length);
+    }, 300);
+  };
+
+  const handleResetFilter = () => {
+    setFilters({
+      position: '',
+      experience: '',
+      location: ''
+    });
+    setFilteredPosts(mockCompanyPosts);
+    setCurrentIndex(0);
   };
 
   return (
@@ -96,10 +139,21 @@ export default function TalentHome() {
               {/* Apply Filter Button */}
               <button
                 onClick={handleApplyFilter}
-                className="w-full mt-6 py-2 rounded-lg font-semibold text-white"
-                style={{ backgroundColor: '#3B82F6' }}
+                disabled={isLoading}
+                className="w-full mt-6 py-2 rounded-lg font-semibold text-white transition-all duration-300 flex items-center justify-center gap-2"
+                style={{ 
+                  backgroundColor: isLoading ? '#1E40AF' : '#3B82F6',
+                  opacity: isLoading ? 0.8 : 1
+                }}
               >
-                Áp dụng bộ lọc
+                {isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Đang tìm kiếm...</span>
+                  </>
+                ) : (
+                  <span>Áp dụng bộ lọc</span>
+                )}
               </button>
             </div>
           </div>
@@ -110,13 +164,32 @@ export default function TalentHome() {
           {/* Left Arrow */}
           <button 
             onClick={handlePrev}
-            disabled={currentIndex === 0}
+            disabled={currentIndex === 0 || filteredPosts.length === 0}
             className="p-2 rounded-full hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronLeft size={32} className="text-slate-600" />
           </button>
 
           {/* Card Container */}
+          {filteredPosts.length === 0 ? (
+            // Màn hình không tìm thấy
+            <div className="relative w-125 h-205 rounded-2xl overflow-hidden shadow-lg flex-shrink-0 bg-white flex flex-col items-center justify-center">
+              <div className="text-center space-y-6 px-8">
+                <div className="text-6xl">😕</div>
+                <h2 className="text-3xl font-bold text-gray-900">Không tìm thấy công việc</h2>
+                <p className="text-gray-600 text-lg">
+                  Không có công việc phù hợp với tiêu chí tìm kiếm của bạn. Vui lòng thử lại với các tiêu chí khác.
+                </p>
+                <button
+                  onClick={handleResetFilter}
+                  className="mt-8 px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors"
+                >
+                  Quay lại danh sách gốc
+                </button>
+              </div>
+            </div>
+          ) : (
+            // Thẻ công việc bình thường
           <div className="relative w-125 h-205 rounded-2xl overflow-hidden shadow-lg flex-shrink-0">
           {/* Background Image */}
           <img 
@@ -208,11 +281,12 @@ export default function TalentHome() {
             </div>
           </div>
         </div>
+          )}
 
           {/* Right Arrow */}
           <button 
             onClick={handleNext}
-            disabled={currentIndex === mockCompanyPosts.length - 1}
+            disabled={currentIndex === filteredPosts.length - 1 || filteredPosts.length === 0}
             className="p-2 rounded-full hover:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <ChevronRight size={32} className="text-slate-600" />

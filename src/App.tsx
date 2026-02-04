@@ -10,7 +10,7 @@ import { PostDetail } from "./components/pages/talent/PostDetail";
 import CommunityPost from "./components/pages/community/CommunityPost";
 import CommunityPostDetail from "./components/pages/community/CommunityPostDetail";
 
-import PortfolioViewPage from "./components/pages/portfolio/PortfolioViewPage";
+import PortfolioViewPage from "./components/portfolio/view/PortfolioViewPage";
 
 function App() {
   return (
