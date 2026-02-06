@@ -24,7 +24,7 @@ const CertificationOne: React.FC<CertificationOneProps> = ({ data }) => {
       {certificates.length > 0 ? (
         <div className="space-y-4">
           {certificates.map((cert: CertificateItem, index: number) => (
-            <div key={index} className="pb-4 border-b border-gray-100 last:border-b-0">
+            <div key={index} className="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
               <h4 className="font-semibold text-gray-900 text-lg">{cert.name}</h4>
               <div className="flex items-start justify-between mt-2">
                 <div>

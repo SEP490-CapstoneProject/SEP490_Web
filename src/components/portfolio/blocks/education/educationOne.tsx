@@ -25,10 +25,10 @@ const EducationOne: React.FC<EducationOneProps> = ({ data }) => {
       {educations.length > 0 ? (
         <div className="space-y-4">
           {educations.map((edu: EducationItem, index: number) => (
-            <div key={index} className="pb-4 border-b border-gray-100 last:border-b-0">
-              <h4 className="font-semibold text-gray-900 text-xl">{edu.school}</h4>
-              <p className="text-blue-600 font-medium text-sm mt-1">{edu.major}</p>
-              <p className="text-gray-500 text-sm mt-1">{edu.time}</p>
+            <div key={index} className="p-4 border border-gray-200 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+              <h4 className="font-semibold text-gray-900 text-lg">{edu.school}</h4>
+              <p className="text-blue-600 font-medium text-sm mt-2">{edu.major}</p>
+              <p className="text-gray-500 text-xs mt-1">{edu.time}</p>
               {edu.description && (
                 <p className="text-gray-600 text-sm mt-3">{edu.description}</p>
               )}

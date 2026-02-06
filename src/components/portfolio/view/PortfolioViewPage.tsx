@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-import shareIcon from '@/assets/myWeb/share1.png';
+import { ArrowLeft, Edit } from 'lucide-react';
 import { PortfolioResponse, portfolioService } from '@/services/portfolio.api';
 import PortfolioRenderer from '@/components/portfolio/render/PortfolioRenderer';
 import PremiumAndTips from '@/components/common/PremiumAndTips';
@@ -37,9 +36,9 @@ const PortfolioViewPage: React.FC = () => {
     fetchPortfolio();
   }, [id]);
 
-  const handleShare = () => {
-    // Placeholder for share functionality
-    console.log('Share portfolio');
+  const handleEdit = () => {
+    // Placeholder for edit functionality
+    console.log('Edit portfolio');
   };
 
   if (loading) {
@@ -76,35 +75,40 @@ const PortfolioViewPage: React.FC = () => {
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-full px-6 py-4 flex items-center justify-between">
-          <button
-            onClick={() => navigate(-1)}
-            className="appearance-none border-none bg-transparent p-0 text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
-            title="Quay về"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-xl font-bold text-gray-900">Hồ sơ cá nhân</h1>
-          <button
-            onClick={handleShare}
-            className="appearance-none border-none bg-transparent p-0 text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
-            title="Chia sẻ"
-          >
-            <img src={shareIcon} alt="Share" className="w-6 h-6 brightness-0" />
-          </button>
+        <div className="flex items-center justify-between pr-6 py-4" style={{ marginRight: '320px' }}>
+          <div className="flex items-center justify-between flex-1 px-6">
+            <button
+              onClick={() => navigate(-1)}
+              className="appearance-none border-none bg-transparent p-0 text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
+              title="Quay về"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">Hồ sơ cá nhân</h1>
+            <button
+              onClick={handleEdit}
+              className="appearance-none border-none bg-transparent p-0 flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
+              title="Chỉnh sửa"
+            >
+              <Edit size={20} />
+              <span className="font-medium">Chỉnh sửa</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto flex min-h-screen">
-        <main className="w-2/3 pr-4 py-8">
+      <div className="flex">
+        <main className="flex-1 px-6 py-8">
           <div className="max-w-2xl">
             <PortfolioRenderer blocks={portfolio.blocks} />
           </div>
         </main>
         
         {/* Premium and Tips Section */}
-        <PremiumAndTips />
+       
+          <PremiumAndTips />
+
       </div>
     </div>
   );
