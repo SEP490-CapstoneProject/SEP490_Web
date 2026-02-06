@@ -1,29 +1,39 @@
 import React from 'react';
 import { ProjectItem } from '@/services/portfolio.api';
+import StartupIcon from '../../../../assets/myWeb/start-up 2.png';
 
 interface ProjectTwoProps {
   data: ProjectItem[];
 }
 
+/**
+ * ProjectTwo - Dự án nổi bật (Biến thể 2)
+ * Hiển thị các dự án với layout compakt hơn
+ */
 const ProjectTwo: React.FC<ProjectTwoProps> = ({ data }) => {
   const projects = Array.isArray(data) ? data : [];
 
   return (
-    <div className="project-block bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-      <h3 className="text-xl font-bold text-gray-900 mb-6">Dự án nổi bật</h3>
+    <div className="project-block bg-white px-6 py-8 border-b border-gray-200 last:border-b-0">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+          <img src={StartupIcon} alt="Dự án" className="w-6 h-6" />
+        </div>
+        <h3 className="text-2xl font-bold text-gray-900">Dự án nổi bật</h3>
+      </div>
       
       {projects.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {projects.map((project: ProjectItem, index: number) => (
             <div
               key={index}
-              className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow flex flex-col"
+              className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow flex flex-col"
             >
               {project.image && (
                 <img
                   src={project.image}
                   alt={project.name}
-                  className="w-full h-56 object-cover"
+                  className="w-full h-40 object-cover"
                 />
               )}
               <div className="p-4 flex flex-col flex-1">

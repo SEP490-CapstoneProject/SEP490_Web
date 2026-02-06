@@ -5,11 +5,15 @@ interface IntroOneProps {
   data: { fullName?: string; title?: string; description?: string; avatar?: string; email?: string; phone?: string };
 }
 
+/**
+ * IntroOne - Giới thiệu cơ bản
+ * Hiển thị thông tin cá nhân cơ bản của người dùng
+ */
 const IntroOne: React.FC<IntroOneProps> = ({ data }) => {
   const { fullName, title, description, avatar, email, phone } = data;
 
   return (
-    <div className="intro-block bg-white border border-gray-200 rounded-lg p-8 shadow-sm text-center">
+    <div className="intro-block bg-white px-6 py-8 text-center border-b border-gray-200 last:border-b-0">
       {/* Avatar */}
       {avatar && (
         <div className="mb-6">

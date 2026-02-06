@@ -10,10 +10,12 @@ const PortfolioRenderer: React.FC<PortfolioRendererProps> = ({ blocks }) => {
   const sortedBlocks = [...blocks].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="space-y-6">
-      {sortedBlocks.map((block) => (
-        <BlockRenderer key={block.id} block={block} />
-      ))}
+    <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+      <div className="space-y-0">
+        {sortedBlocks.map((block) => (
+          <BlockRenderer key={block.id} block={block} />
+        ))}
+      </div>
     </div>
   );
 };
