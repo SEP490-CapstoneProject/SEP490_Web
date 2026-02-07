@@ -21,7 +21,13 @@ const PortfolioViewPage: React.FC = () => {
           throw new Error('Portfolio ID is required');
         }
 
-        const data = await portfolioService.fetchPortfolioById();
+        const portfolioId = parseInt(id, 10);
+        const data = await portfolioService.fetchPortfolioById(portfolioId);
+        
+        if (!data) {
+          throw new Error('Portfolio not found');
+        }
+        
         setPortfolio(data);
         setError(null);
       } catch (err) {
