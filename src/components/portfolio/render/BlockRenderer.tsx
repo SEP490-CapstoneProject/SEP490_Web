@@ -5,7 +5,7 @@ import SkillBlock from '../blocks/skill/SkillBlock';
 import EducationBlock from '../blocks/education/EducationBlock';
 import ExperienceBlock from '../blocks/experience/ExperienceBlock';
 import ProjectBlock from '../blocks/project/ProjectBlock';
-import CertificationBlock from '../blocks/certification/CertificationBlock';
+import CertificationBlock from '../blocks/diploma/CertificationBlock';
 
 interface BlockRendererProps {
   block: PortfolioBlock;
@@ -30,6 +30,8 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
       case 'project':
         return <ProjectBlock data={data} variant={blockVariant} />;
       case 'certificate':
+        return <CertificationBlock data={data} variant={blockVariant} />;
+      case 'diploma':
         return <CertificationBlock data={data} variant={blockVariant} />;
       default:
         return (

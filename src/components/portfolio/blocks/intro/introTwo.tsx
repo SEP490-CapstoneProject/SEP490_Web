@@ -15,7 +15,7 @@ const IntroTwo: React.FC<IntroTwoProps> = ({ data }) => {
   return (
     <div className="intro-block flex bg-white border-b border-gray-200 last:border-b-0 mt-10">
       {/* Left Sidebar - Avatar */}
-      <div className="ml-8 border-2 border-gray-300">
+      <div className="ml-8 rounded-md border-gray-300">
         {avatar && (
           <img
             src={avatar}

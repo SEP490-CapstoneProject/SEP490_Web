@@ -11,6 +11,8 @@ const CertificationBlock: React.FC<CertificationBlockProps> = ({ data, variant }
   switch (variant.toUpperCase()) {
     case 'CERTIFICATEONE':
       return <CertificationOne data={data} />;
+    case 'DIPLOMA':
+      return <CertificationOne data={data} />;
     default:
       return <CertificationOne data={data} />;
   }
