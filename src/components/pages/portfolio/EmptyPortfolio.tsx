@@ -1,7 +1,7 @@
 import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import EmptyImg from "@/assets/empty-portfolio-img.png";
-import PremiumAndTips from "@/components/common/PremiumAndTips";
+import { PremiumAndTips } from "@/components/common/Premium";
 
 export default function EmptyPortfolioPage() {
   return (
@@ -41,7 +41,7 @@ export default function EmptyPortfolioPage() {
             </Button>
           </div>
         </main>
-    
+
         <PremiumAndTips />
       </div>
     </div>

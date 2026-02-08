@@ -1,4 +1,3 @@
-import PremiumAndTips from "@/components/common/PremiumAndTips";
 import {
   ArrowLeft,
   Plus,
@@ -12,7 +11,11 @@ import {
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { PortfolioMainBlockItem, portfolioService } from "@/services/portfolio.api";
+import {
+  PortfolioMainBlockItem,
+  portfolioService,
+} from "@/services/portfolio.api";
+import { PremiumAndTips } from "@/components/common/Premium";
 
 const ProfileCard = ({
   data,
@@ -29,7 +32,7 @@ const ProfileCard = ({
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const { fullName, title, email, phone, avatar } = data.blocks.data;
-  const statusLabel = isPrimary ? "Đang dùng" : "Bản nháp";
+  const statusLabel = isPrimary ? "Bản chính" : "Bản nháp";
   const status = isPrimary ? "active" : "draft";
 
   return (
@@ -70,9 +73,9 @@ const ProfileCard = ({
                       setShowMenu(false);
                     }}
                     className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 cursor-pointer"
-                    style={{ backgroundColor: '#DCFCE7', color: '#1B8442' }}
+                    style={{ backgroundColor: "#DCFCE7", color: "#1B8442" }}
                   >
-                     Hủy bản chính
+                    Hủy bản chính
                   </button>
                 ) : (
                   <button
@@ -81,7 +84,7 @@ const ProfileCard = ({
                       setShowMenu(false);
                     }}
                     className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 cursor-pointer"
-                    style={{ backgroundColor: '#DCFCE7', color: '#1B8442' }}
+                    style={{ backgroundColor: "#DCFCE7", color: "#1B8442" }}
                   >
                     <Edit3 size={14} /> Đặt làm bản chính
                   </button>
@@ -98,15 +101,15 @@ const ProfileCard = ({
                 </button>
                 <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
                   <Edit3 size={14} /> Chỉnh sửa
-                </button> 
-                <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">
-                  <Trash2 size={14} /> Xóa 
                 </button>
-                
+                <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer">
+                  <Trash2 size={14} /> Xóa
+                </button>
+
                 <div className="border-t border-slate-100 dark:border-slate-700 my-1"></div>
-                  <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
-                    <Share2 size={14} /> Chia sẻ
-                  </button>
+                <button className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer">
+                  <Share2 size={14} /> Chia sẻ
+                </button>
               </div>
             </>
           )}
@@ -118,10 +121,15 @@ const ProfileCard = ({
           <img
             alt="Profile"
             className="w-full h-full object-cover"
-            src={avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=default"}
+            src={
+              avatar ||
+              "https://api.dicebear.com/7.x/avataaars/svg?seed=default"
+            }
           />
         </div>
-        <h3 className="text-xl font-bold mb-1">{fullName || "Chưa cập nhật tên"}</h3>
+        <h3 className="text-xl font-bold mb-1">
+          {fullName || "Chưa cập nhật tên"}
+        </h3>
         <p className="text-blue-500 font-medium text-sm mb-4">
           {title || "Chưa cập nhật chức vụ"}
         </p>
@@ -154,14 +162,17 @@ export default function ProfileManagement() {
   const navigate = useNavigate();
   const [portfolios, setPortfolios] = useState<PortfolioMainBlockItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [primaryPortfolioId, setPrimaryPortfolioId] = useState<number | null>(null);
+  const [primaryPortfolioId, setPrimaryPortfolioId] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     const fetchPortfolios = async () => {
       try {
         setLoading(true);
         const userId = 2; // Mock user ID
-        const data = await portfolioService.fetchMainPortfoliosManagerByUser(userId);
+        const data =
+          await portfolioService.fetchMainPortfoliosManagerByUser(userId);
         setPortfolios(data);
         // Đặt portfolio đầu tiên là bản chính mặc định
         if (data.length > 0) {

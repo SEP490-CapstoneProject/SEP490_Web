@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit } from 'lucide-react';
 import { PortfolioResponse, portfolioService } from '@/services/portfolio.api';
 import PortfolioRenderer from '@/components/portfolio/render/PortfolioRenderer';
-import PremiumAndTips from '@/components/common/PremiumAndTips';
+import { PremiumAndTips } from '@/components/common/Premium';
+
 
 const PortfolioViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
