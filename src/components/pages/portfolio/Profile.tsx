@@ -18,8 +18,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useState } from "react";
+import EditProfileModal from "./EditProfileModal";
 
 export default function ProfilePage() {
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500">
       {/* CỘT TRÁI - Portfolio Card */}
@@ -41,6 +44,7 @@ export default function ProfilePage() {
                 <Edit3
                   size={12}
                   className="text-slate-400 group-hover:text-blue-500"
+                  onClick={() => setIsEditModalOpen(true)}
                 />
               </div>
             </div>
@@ -188,6 +192,10 @@ export default function ProfilePage() {
           </p>
         </Card>
       </div>
+      <EditProfileModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+      />
     </div>
   );
 }

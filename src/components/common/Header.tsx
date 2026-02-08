@@ -12,6 +12,8 @@ export function Header() {
     { icon: Users, label: "Hồ sơ", href: "/profile" },
     { icon: MessageSquare, label: "Danh mục", href: "/portfolioManagement" },
     { icon: Bell, label: "Portfolio trống", href: "/emptyPortfolio" },
+    { icon: Bell, label: "Thông báo", href: "/notification" },
+    { icon: Bell, label: "Cộng đồng", href: "/community" },
   ];
 
   return (

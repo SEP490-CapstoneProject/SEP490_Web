@@ -11,6 +11,7 @@ import CommunityPost from "./components/pages/community/CommunityPost";
 import CommunityPostDetail from "./components/pages/community/CommunityPostDetail";
 
 import PortfolioViewPage from "./components/portfolio/view/PortfolioViewPage";
+import NotificationsPage from "./components/pages/notification/NotificationsPage";
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/community" element={<CommunityPost />} />
           <Route path="/community/:id" element={<CommunityPostDetail />} />
           <Route path="/portfolio/:id" element={<PortfolioViewPage />} />
+          <Route path="/notification" element={<NotificationsPage />} />
         </Route>
         <Route path="*" element={<div>404 Not Found</div>} />
       </Routes>
