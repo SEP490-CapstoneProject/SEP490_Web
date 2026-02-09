@@ -6,6 +6,7 @@ import PortfolioManagement from "./components/pages/portfolio/PortfolioManagemen
 import EmptyPortfolioPage from "./components/pages/portfolio/EmptyPortfolio";
 import TalentHome from "./components/pages/talent/TalentHome";
 import { PostDetail } from "./components/pages/talent/PostDetail";
+import ChatRoom from "./components/pages/talent/ChatRoom";
 
 import CommunityPost from "./components/pages/community/CommunityPost";
 import CommunityPostDetail from "./components/pages/community/CommunityPostDetail";
@@ -21,6 +22,7 @@ function App() {
         <Route element={<WebLayout />}>
           <Route path="talent-home" element={<TalentHome />} />
           <Route path="/job/:postId" element={<PostDetail />} />
+          <Route path="/chat" element={<ChatRoom />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/portfolioManagement" element={<PortfolioManagement />} />
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
