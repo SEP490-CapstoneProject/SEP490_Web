@@ -22,6 +22,38 @@ export type PortfolioMainBlockItem = {
   blocks: PortfolioBlock;
 };
 
+export type ExperienceItem = {
+  jobName: string;
+  address: string;
+  startDate: string;
+  endDate: string;
+  description?: string;
+};
+
+export type AwardItem = {
+  name: string;
+  date: string;
+  organization: string;
+  description?: string;
+};
+
+export type ActivityItem = {
+  name: string;
+  date: string;
+  description?: string;
+};
+
+export type OtherInfoItem = {
+  detail: string;
+};
+
+export type ReferenceItem = {
+  name: string;
+  position: string;
+  mail: string;
+  phone: string;
+};
+
 export const PORTFOLIO_MOCK: PortfolioResponse[] = [
   {
     portfolioId: 12,

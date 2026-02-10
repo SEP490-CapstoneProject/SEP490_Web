@@ -6,6 +6,10 @@ import EducationBlock from '../blocks/education/EducationBlock';
 import ExperienceBlock from '../blocks/experience/ExperienceBlock';
 import ProjectBlock from '../blocks/project/ProjectBlock';
 import CertificationBlock from '../blocks/diploma/CertificationBlock';
+import AwardBlock from '../blocks/award/AwardBlock';
+import ActivityBlock from '../blocks/activity/ActivityBlock';
+import OtherInfoBlock from '../blocks/otherinfo/OtherInfoBlock';
+import ReferenceBlock from '../blocks/reference/ReferenceBlock';
 
 interface BlockRendererProps {
   block: PortfolioBlock;
@@ -26,6 +30,7 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
       case 'education':
         return <EducationBlock data={data} variant={blockVariant} />;
       case 'experience':
+      case 'experiment':
         return <ExperienceBlock data={data} variant={blockVariant} />;
       case 'project':
         return <ProjectBlock data={data} variant={blockVariant} />;
@@ -33,6 +38,14 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
         return <CertificationBlock data={data} variant={blockVariant} />;
       case 'diploma':
         return <CertificationBlock data={data} variant={blockVariant} />;
+      case 'award':
+        return <AwardBlock data={data} variant={blockVariant} />;
+      case 'activities':
+        return <ActivityBlock data={data} variant={blockVariant} />;
+      case 'otherinfo':
+        return <OtherInfoBlock data={data} variant={blockVariant} />;
+      case 'reference':
+        return <ReferenceBlock data={data} variant={blockVariant} />;
       default:
         return (
           <div className="p-4 bg-red-100 border border-red-400 rounded">
