@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { PortfolioResponse, portfolioService } from '@/services/portfolio.api';
 import PortfolioRenderer from '@/components/portfolio/render/PortfolioRenderer';
 import { PremiumAndTips } from '@/components/common/Premium';
+import PencilIcon from '@/assets/myWeb/pencil.png';
 
 
 const PortfolioViewPage: React.FC = () => {
@@ -79,11 +80,11 @@ const PortfolioViewPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="flex items-center justify-between pr-6 py-4" style={{ marginRight: '320px' }}>
-          <div className="flex items-center justify-between flex-1 px-6">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between px-6 py-4">
             <button
               onClick={() => navigate(-1)}
               className="appearance-none border-none bg-transparent p-0 text-gray-700 hover:text-gray-900 transition-colors cursor-pointer"
@@ -94,28 +95,29 @@ const PortfolioViewPage: React.FC = () => {
             <h1 className="text-xl font-bold text-gray-900">Hồ sơ cá nhân</h1>
             <button
               onClick={handleEdit}
-              className="appearance-none border-none bg-transparent p-0 flex items-center gap-2 text-blue-500 hover:text-blue-600 transition-colors cursor-pointer"
+              className="appearance-none border-none bg-transparent p-2 hover:bg-gray-100 rounded-full transition-colors cursor-pointer"
               title="Chỉnh sửa"
             >
-              <Edit size={20} />
-              <span className="font-medium">Chỉnh sửa</span>
+              <img src={PencilIcon} alt="Chỉnh sửa" className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex">
-        <main className="flex-1 px-6 py-8">
-          <div className="max-w-2xl">
+      <div className="flex max-w-7xl mx-auto gap-6">
+        <main className="flex-1 py-6 px-4 min-w-0">
+          <div className="max-w-3xl">
             <PortfolioRenderer blocks={portfolio.blocks} />
           </div>
         </main>
         
         {/* Premium and Tips Section */}
-       
-          <PremiumAndTips />
-
+        <aside className="hidden lg:block w-96 shrink-0 py-6 pr-4">
+          <div className="sticky top-24">
+            <PremiumAndTips />
+          </div>
+        </aside>
       </div>
     </div>
   );

@@ -10,6 +10,8 @@ import AwardBlock from '../blocks/award/AwardBlock';
 import ActivityBlock from '../blocks/activity/ActivityBlock';
 import OtherInfoBlock from '../blocks/otherinfo/OtherInfoBlock';
 import ReferenceBlock from '../blocks/reference/ReferenceBlock';
+import TeachingBlock from '../blocks/teaching/TeachingBlock';
+import TypicalCaseBlock from '../blocks/typicalcase/TypicalCaseBlock';
 
 interface BlockRendererProps {
   block: PortfolioBlock;
@@ -46,6 +48,10 @@ const BlockRenderer: React.FC<BlockRendererProps> = ({ block }) => {
         return <OtherInfoBlock data={data} variant={blockVariant} />;
       case 'reference':
         return <ReferenceBlock data={data} variant={blockVariant} />;
+      case 'teaching':
+        return <TeachingBlock data={data} variant={blockVariant} />;
+      case 'typicalcase':
+        return <TypicalCaseBlock data={data} variant={blockVariant} />;
       default:
         return (
           <div className="p-4 bg-red-100 border border-red-400 rounded">

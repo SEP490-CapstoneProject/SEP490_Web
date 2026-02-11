@@ -54,6 +54,19 @@ export type ReferenceItem = {
   phone: string;
 };
 
+export type TeachingItem = {
+  subject: string;
+  teachingplace: string;
+};
+
+export type TypicalCaseItem = {
+  patient: string;
+  age: string;
+  caseName: string;
+  stage: string;
+  regiment: string;
+};
+
 export const PORTFOLIO_MOCK: PortfolioResponse[] = [
   {
     portfolioId: 12,

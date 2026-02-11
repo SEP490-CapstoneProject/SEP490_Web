@@ -9,11 +9,9 @@ export function Header() {
   // Danh sách các tab điều hướng trung tâm
   const navItems = [
     { icon: Home, label: "Trang chủ", href: "/talent-home" },
-    { icon: Users, label: "Hồ sơ", href: "/profile" },
-    { icon: MessageSquare, label: "Danh mục", href: "/portfolioManagement" },
-    { icon: Bell, label: "Portfolio trống", href: "/emptyPortfolio" },
+    { icon: Users, label: "Cộng đồng", href: "/community" },
+    { icon: MessageSquare, label: "Tin nhắn", href: "/chat" },
     { icon: Bell, label: "Thông báo", href: "/notification" },
-    { icon: Bell, label: "Cộng đồng", href: "/community" },
   ];
 
   return (
@@ -58,12 +56,12 @@ export function Header() {
 
       {/* 3. User Section (Bên phải) */}
       <div className="flex items-center justify-end min-w-37.5">
-        <div className="flex items-center gap-4 cursor-pointer group p-1 pr-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
+        <Link to="/profile" className="flex items-center gap-4 cursor-pointer group p-1 pr-2 rounded-full hover:bg-slate-50 dark:hover:bg-slate-800 transition-all">
           <Avatar className="h-10 w-10 border-2 border-white dark:border-slate-700 shadow-sm group-hover:ring-4 group-hover:ring-blue-500/10 transition-all">
             <AvatarImage src="https://github.com/shadcn.png" alt="User" />
             <AvatarFallback>US</AvatarFallback>
           </Avatar>
-        </div>
+        </Link>
       </div>
       
     </header>

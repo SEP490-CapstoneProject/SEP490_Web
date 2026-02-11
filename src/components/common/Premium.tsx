@@ -10,7 +10,7 @@ const TipItem = ({ text }: { text: string }) => (
 );
 export function PremiumAndTips() {
   return (
-    <aside className="w-1/3 space-y-8 hidden lg:block bg-slate-50/50 dark:bg-slate-900/50">
+    <div className="space-y-8">
       <div className="bg-blue-500 rounded-3xl p-8 text-white relative overflow-hidden shadow-lg shadow-blue-500/20">
         <div className="relative z-10">
           <h3 className="text-2xl font-bold mb-3 leading-tight">
@@ -20,7 +20,7 @@ export function PremiumAndTips() {
             Nhận ưu tiên hiển thị hồ sơ cho các nhà tuyển dụng hàng đầu và mở
             khóa các tính năng nâng cao.
           </p>
-          <button className="bg-white text-blue-500 px-6 py-4 rounded-2xl font-bold text-sm w-full hover:bg-blue-50 transition-colors shadow-sm cursor-po">
+          <button className="bg-white text-blue-500 px-6 py-4 rounded-2xl font-bold text-sm w-full hover:bg-blue-50 transition-colors shadow-sm cursor-pointer">
             Tìm hiểu thêm
           </button>
         </div>
@@ -39,7 +39,7 @@ export function PremiumAndTips() {
           <TipItem text="Sử dụng từ khóa chuyên môn trong chức danh để nhà tuyển dụng dễ tìm thấy." />
         </ul>
       </div>
-    </aside>
+    </div>
   );
 }
 export function PremiumInNotification() {

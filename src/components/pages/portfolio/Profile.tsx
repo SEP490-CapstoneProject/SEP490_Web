@@ -19,10 +19,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import EditProfileModal from "./EditProfileModal";
+import { portfolioService } from "@/services/portfolio.api";
 
 export default function ProfilePage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handlePortfolioClick = async () => {
+    try {
+      const userId = 2; // Mock user ID
+      const portfolios = await portfolioService.fetchMainPortfoliosManagerByUser(userId);
+      
+      if (portfolios && portfolios.length > 0) {
+        navigate('/portfolioManagement');
+      } else {
+        navigate('/emptyPortfolio');
+      }
+    } catch (error) {
+      console.error('Error checking portfolios:', error);
+      navigate('/emptyPortfolio');
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500">
       {/* CỘT TRÁI - Portfolio Card */}
@@ -122,6 +142,7 @@ export default function ProfilePage() {
             icon={<FileText className="text-blue-600" />}
             title="Quản lý hồ sơ"
             desc="Cập nhật hồ sơ của bạn"
+            onClick={handlePortfolioClick}
           />
           <ServiceCard
             icon={<Users className="text-blue-600" />}
@@ -204,13 +225,18 @@ function ServiceCard({
   icon,
   title,
   desc,
+  onClick,
 }: {
   icon: any;
   title: string;
   desc: string;
+  onClick?: () => void;
 }) {
   return (
-    <Card className="border-2 border-slate-200 bg-white rounded-2xl cursor-pointer hover:border-blue-400 transition-all shadow-sm">
+    <Card 
+      className="border-2 border-slate-200 bg-white rounded-2xl cursor-pointer hover:border-blue-400 transition-all shadow-sm"
+      onClick={onClick}
+    >
       <CardContent className="p-6 space-y-3">
         <div className="h-10 w-10 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
           {icon}
