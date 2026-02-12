@@ -43,6 +43,10 @@ export default function ProfilePage() {
     }
   };
 
+  const handleCommunityPostClick = () => {
+    navigate('/my-community-posts');
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500">
       {/* CỘT TRÁI - Portfolio Card */}
@@ -148,6 +152,7 @@ export default function ProfilePage() {
             icon={<Users className="text-blue-600" />}
             title="Bài đăng cộng đồng"
             desc="Hoạt động cộng đồng"
+            onClick={handleCommunityPostClick}
           />
           <ServiceCard
             icon={<LineChart className="text-blue-600" />}

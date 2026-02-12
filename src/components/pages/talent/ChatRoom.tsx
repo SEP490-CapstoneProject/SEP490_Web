@@ -94,7 +94,7 @@ export default function ChatRoom({ conversations = mockConversations }: ChatRoom
         <div className="px-4 py-6 border-b border-gray-200">
          
           {/* Search Box */}
-          <div className="relative max-w-[198px]">
+          <div className="relative max-w-[198px] ">
             <input
               type="text"
               placeholder="Tìm kiếm..."

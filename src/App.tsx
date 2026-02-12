@@ -10,7 +10,7 @@ import ChatRoom from "./components/pages/talent/ChatRoom";
 
 import CommunityPost from "./components/pages/community/CommunityPost";
 import CommunityPostDetail from "./components/pages/community/CommunityPostDetail";
-
+import MyCommunityPost from "./components/pages/community/MyCommunityPost";
 import PortfolioViewPage from "./components/portfolio/view/PortfolioViewPage";
 import NotificationsPage from "./components/pages/notification/NotificationsPage";
 
@@ -29,6 +29,7 @@ function App() {
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
           <Route path="/community" element={<CommunityPost />} />
           <Route path="/community/:id" element={<CommunityPostDetail />} />
+          <Route path="/my-community-posts" element={<MyCommunityPost />} />
           <Route path="/portfolio/:id" element={<PortfolioViewPage />} />
           <Route path="/notification" element={<NotificationsPage />} />
         </Route>
