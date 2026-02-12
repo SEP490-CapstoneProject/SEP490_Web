@@ -5,12 +5,13 @@ import ProfilePage from "./components/pages/portfolio/Profile";
 import PortfolioManagement from "./components/pages/portfolio/PortfolioManagement";
 import EmptyPortfolioPage from "./components/pages/portfolio/EmptyPortfolio";
 import TalentHome from "./components/pages/talent/TalentHome";
+import RecruiterHome from "./components/pages/recruiter/home/RecruiterHome";
 import { PostDetail } from "./components/pages/talent/PostDetail";
 import ChatRoom from "./components/pages/talent/ChatRoom";
 
 import CommunityPost from "./components/pages/community/CommunityPost";
 import CommunityPostDetail from "./components/pages/community/CommunityPostDetail";
-import MyCommunityPost from "./components/pages/community/MyCommunityPost";
+
 import PortfolioViewPage from "./components/portfolio/view/PortfolioViewPage";
 import NotificationsPage from "./components/pages/notification/NotificationsPage";
 
@@ -22,6 +23,7 @@ function App() {
         <Route path="/" element={<LoginPage />} />{" "}
         <Route element={<WebLayout />}>
           <Route path="talent-home" element={<TalentHome />} />
+          <Route path="recruiter-home" element={<RecruiterHome />} />
           <Route path="/job/:postId" element={<PostDetail />} />
           <Route path="/chat" element={<ChatRoom />} />
           <Route path="/profile" element={<ProfilePage />} />
@@ -29,8 +31,7 @@ function App() {
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
           <Route path="/community" element={<CommunityPost />} />
           <Route path="/community/:id" element={<CommunityPostDetail />} />
-          <Route path="/my-community-posts" element={<MyCommunityPost />} />
-          <Route path="/portfolio/:id" element={<PortfolioViewPage />} />
+          <Route path="/portfolio/:id" element={<PortfolioViewPage />} />g
           <Route path="/notification" element={<NotificationsPage />} />
         </Route>
         <Route path="*" element={<div>404 Not Found</div>} />

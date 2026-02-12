@@ -47,6 +47,12 @@ export default function ProfilePage() {
     navigate('/my-community-posts');
   };
 
+  const handleLogout = () => {
+    // Clear any stored authentication data if needed
+    // localStorage.removeItem('token');
+    navigate('/');
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-500">
       {/* CỘT TRÁI - Portfolio Card */}
@@ -211,6 +217,7 @@ export default function ProfilePage() {
               icon={<LogOut size={18} />}
               label="Đăng xuất"
               isDanger
+              onClick={handleLogout}
             />
           </div>
           <p className="text-center text-[10px] text-slate-400 mt-12">
@@ -259,13 +266,18 @@ function SettingsItem({
   icon,
   label,
   isDanger,
+  onClick,
 }: {
   icon: any;
   label: string;
   isDanger?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl border-2 border-slate-100 cursor-pointer hover:border-blue-200 hover:bg-slate-50 transition-all bg-white">
+    <div 
+      className="flex items-center justify-between p-3 rounded-xl border-2 border-slate-100 cursor-pointer hover:border-blue-200 hover:bg-slate-50 transition-all bg-white"
+      onClick={onClick}
+    >
       <div
         className={`flex items-center gap-3 ${isDanger ? "text-red-500" : "text-slate-700"} font-bold text-sm`}
       >

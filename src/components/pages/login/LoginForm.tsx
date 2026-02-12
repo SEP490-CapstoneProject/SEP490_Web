@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { mockLoginAccounts } from "@/data/mockUser";
 
 export const LoginForm = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -18,12 +19,20 @@ export const LoginForm = () => {
     setError("");
     setLoading(true);
 
-    // Giả lập xác thực (có thể thay bằng API call sau)
+    // Giả lập xác thực với mockLoginAccounts
     setTimeout(() => {
-      if (email === "user@gmail.com" && password === "user123") {
-        // Đăng nhập thành công
+      const account = mockLoginAccounts.find(
+        (acc) => acc.email === email && acc.password === password
+      );
+
+      if (account) {
+        // Đăng nhập thành công - redirect dựa trên role
         setLoading(false);
-        navigate("/talent-home");
+        if (account.role === "recruiter") {
+          navigate("/recruiter-home");
+        } else {
+          navigate("/talent-home");
+        }
       } else {
         // Đăng nhập thất bại
         setError("Email hoặc mật khẩu không chính xác");
