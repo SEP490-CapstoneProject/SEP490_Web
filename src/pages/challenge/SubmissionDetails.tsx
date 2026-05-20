@@ -1,4 +1,4 @@
-import { ArrowLeft, AlertCircle, CheckCircle2, Clock, Zap } from "lucide-react";
+import { ArrowLeft, AlertCircle, Star,  FileText, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppSelector } from "@/store/hook";
@@ -7,7 +7,7 @@ import { SubmissionDetailResponse } from "@/types/challenge";
 import CustomLoading from "@/components/Loading/Loading";
 import { notify } from "@/lib/toast";
 
-export default function SubmissionDetails() {
+export default function SubmissionDetail() {
   const navigate = useNavigate();
   const { submissionId } = useParams<{ submissionId: string }>();
   const { accessToken } = useAppSelector((state) => state.auth);
@@ -23,15 +23,12 @@ export default function SubmissionDetails() {
         throw new Error("Invalid submission ID or token");
       }
 
-      console.log("📡 [SubmissionDetails] Loading submission:", submissionId);
-      console.log("🔐 [SubmissionDetails] Token from Redux:", accessToken?.substring(0, 50) + "...");
-      console.log("🔐 [SubmissionDetails] Full Token:", accessToken);
-      const submissionData = await getSubmissionDetail(submissionId, accessToken);
-      setSubmission(submissionData);
-      console.log("✅ [SubmissionDetails] Submission loaded:", submissionData);
+      console.log("📡 [SubmissionDetail] Loading submission:", submissionId);
+      const data = await getSubmissionDetail(submissionId, accessToken);
+      setSubmission(data);
+      console.log("✅ [SubmissionDetail] Submission loaded:", data);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Có lỗi khi tải dữ liệu";
+      const errorMessage = err instanceof Error ? err.message : "Có lỗi khi tải dữ liệu";
       console.error("❌ Error loading submission:", errorMessage);
       notify.error(errorMessage);
     } finally {
@@ -40,8 +37,10 @@ export default function SubmissionDetails() {
   }, [submissionId, accessToken]);
 
   useEffect(() => {
-    loadSubmissionDetail();
-  }, [loadSubmissionDetail]);
+    if (submissionId) {
+      loadSubmissionDetail();
+    }
+  }, [submissionId, loadSubmissionDetail]);
 
   if (isLoading) {
     return <CustomLoading />;
@@ -52,9 +51,7 @@ export default function SubmissionDetails() {
       <div className="min-h-screen bg-slate-50 p-8 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle size={48} className="mx-auto text-red-600 mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">
-            Không tìm thấy bài nộp
-          </h1>
+          <h1 className="text-2xl font-bold text-slate-900 mb-2">Không tìm thấy bài nộp</h1>
           <button
             onClick={() => navigate(-1)}
             className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
@@ -66,63 +63,53 @@ export default function SubmissionDetails() {
     );
   }
 
-  const createdDate = new Date(submission.createdAt).toLocaleDateString(
-    "vi-VN",
-    {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }
-  );
-
-  const gradedDate = submission.gradedAt
-    ? new Date(submission.gradedAt).toLocaleDateString("vi-VN", {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "Chưa chấm điểm";
-
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case "Graded":
         return {
           label: "Đã chấm điểm",
           color: "bg-green-100 text-green-800",
-          icon: CheckCircle2,
+          icon: <CheckCircle2 size={16} />,
         };
       case "Pending":
         return {
-          label: "Chờ chấm điểm",
+          label: "Đang chờ",
           color: "bg-yellow-100 text-yellow-800",
-          icon: Clock,
+          icon: <Loader2 size={16} className="animate-spin" />,
         };
-      case "Submitted":
+      case "Failed":
         return {
-          label: "Đã nộp",
-          color: "bg-blue-100 text-blue-800",
-          icon: Zap,
+          label: "Thất bại",
+          color: "bg-red-100 text-red-800",
+          icon: <XCircle size={16} />,
         };
       default:
         return {
           label: status,
           color: "bg-slate-100 text-slate-800",
-          icon: AlertCircle,
+          icon: null,
         };
     }
   };
 
-  const statusDisplay = getStatusDisplay(submission.status ?? "");
-  const StatusIcon = statusDisplay.icon;
+  const statusDisplay = getStatusDisplay(submission.status);
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-600";
+    if (score >= 50) return "text-yellow-600";
+    return "text-red-600";
+  };
+
+  const getScoreBarColor = (score: number) => {
+    if (score >= 80) return "bg-green-500";
+    if (score >= 50) return "bg-yellow-500";
+    return "bg-red-500";
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
+        {/* Back button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6 font-medium"
@@ -131,98 +118,104 @@ export default function SubmissionDetails() {
           Quay lại
         </button>
 
-        {/* Main Content */}
+        {/* Header card */}
         <div className="bg-white rounded-lg border border-slate-200 p-8 mb-6">
-          {/* Header Section */}
-          <div className="mb-8">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">
-                  Chi tiết bài nộp
-                </h1>
-                <p className="text-slate-600">ID bài nộp: {submission.id}</p>
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">
+                Chi tiết bài nộp
+              </h1>
+              <p className="text-sm text-slate-500 font-mono">ID: {submission.id}</p>
+            </div>
+            <span
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold ${statusDisplay.color}`}
+            >
+              {statusDisplay.icon}
+              {statusDisplay.label}
+            </span>
+          </div>
+
+          {/* Score section */}
+          <div className="p-6 bg-slate-50 rounded-lg mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Star size={20} className="text-yellow-500" />
+                <span className="font-semibold text-slate-700">Điểm tổng</span>
               </div>
               <span
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${statusDisplay.color}`}
+                className={`text-3xl font-bold ${getScoreColor(submission.overallScore)}`}
               >
-                <StatusIcon size={16} />
-                {statusDisplay.label}
+                {submission.overallScore}
+                <span className="text-lg text-slate-400 font-normal">/100</span>
               </span>
+            </div>
+            <div className="w-full bg-slate-200 rounded-full h-2.5">
+              <div
+                className={`h-2.5 rounded-full transition-all duration-700 ${getScoreBarColor(submission.overallScore)}`}
+                style={{ width: `${Math.min(submission.overallScore, 100)}%` }}
+              />
             </div>
           </div>
 
-          {/* Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-slate-50 rounded-lg">
-            <div>
-              <p className="text-sm text-slate-500 mb-2">Điểm số</p>
-              <div className="flex items-baseline gap-2">
-                <span className="text-4xl font-bold text-blue-600">
-                  {submission.overallScore}
-                </span>
-                <span className="text-slate-600">/10</span>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500 mb-2">User ID</p>
-              <p className="text-lg font-semibold text-slate-900">
-                {submission.userId}
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500 mb-2">Tạo vào</p>
-              <p className="text-slate-900">{createdDate}</p>
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-500 mb-2">Chấm điểm vào</p>
-              <p className="text-slate-900">{gradedDate}</p>
-            </div>
-
-            <div className="md:col-span-2">
-              <p className="text-sm text-slate-500 mb-2">Challenge ID</p>
-              <p className="text-slate-900 font-mono text-sm">
+          {/* Meta info grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="p-4 border border-slate-100 rounded-lg">
+              <p className="text-xs text-slate-500 mb-1">Mã thử thách</p>
+              <p className="text-sm font-semibold text-slate-800 font-mono truncate">
                 {submission.challengeId}
               </p>
             </div>
+            <div className="p-4 border border-slate-100 rounded-lg">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Clock size={12} className="text-slate-400" />
+                <p className="text-xs text-slate-500">Ngày nộp</p>
+              </div>
+              <p className="text-sm font-semibold text-slate-800">
+                {new Date(submission.createdAt).toLocaleDateString("vi-VN", {
+                  year: "numeric",
+                  month: "2-digit",
+                  day: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            </div>
+            {submission.gradedAt && (
+              <div className="p-4 border border-slate-100 rounded-lg">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <CheckCircle2 size={12} className="text-slate-400" />
+                  <p className="text-xs text-slate-500">Ngày chấm</p>
+                </div>
+                <p className="text-sm font-semibold text-slate-800">
+                  {new Date(submission.gradedAt).toLocaleDateString("vi-VN", {
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            )}
           </div>
+        </div>
 
-          {/* Feedback Section */}
-          <div className="mb-6">
-            <h2 className="text-xl font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <Zap size={20} className="text-yellow-600" />
-              Nhận xét của AI
-            </h2>
-            <div className="p-6 bg-slate-50 rounded-lg border border-slate-200">
-              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed">
+        {/* AI Feedback */}
+        {submission.aiFeedback && (
+          <div className="bg-white rounded-lg border border-slate-200 p-8 mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <FileText size={16} className="text-blue-600" />
+              </div>
+              <h2 className="text-lg font-bold text-slate-900">Nhận xét từ AI</h2>
+            </div>
+            <div className="bg-blue-50 border border-blue-100 rounded-lg p-5">
+              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed text-sm">
                 {submission.aiFeedback}
               </p>
             </div>
           </div>
-
-          {/* Summary Stats */}
-          <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-200">
-            <div className="text-center">
-              <p className="text-sm text-slate-500 mb-2">Trạng thái</p>
-              <p className="font-semibold text-slate-900">
-                {statusDisplay.label}
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-slate-500 mb-2">Điểm số</p>
-              <p className="font-semibold text-blue-600">
-                {submission.overallScore}/10
-              </p>
-            </div>
-            <div className="text-center">
-              <p className="text-sm text-slate-500 mb-2">Tình trạng</p>
-              <p className="font-semibold text-slate-900">
-                {submission.gradedAt ? "Đã chấm" : "Chờ chấm"}
-              </p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

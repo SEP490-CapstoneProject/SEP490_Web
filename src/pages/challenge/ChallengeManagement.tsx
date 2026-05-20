@@ -58,10 +58,10 @@ function ChallengeCard({
         return { label: "Chờ duyệt", color: "bg-yellow-100 text-yellow-800" };
       case "Published":
         return { label: "Đã xuất bản", color: "bg-green-100 text-green-800" };
-      case "Closed":
-        return { label: "Đã đóng", color: "bg-red-100 text-red-800" };
-      case "Archived":
-        return { label: "Đã lưu trữ", color: "bg-gray-100 text-gray-800" };
+      case "Rejected":
+        return { label: "Đã từ chối", color: "bg-red-100 text-red-800" };
+      case "Expired":
+        return { label: "Đã hết hạn", color: "bg-red-100 text-red-800" };
       default:
         return { label: status, color: "bg-slate-100 text-slate-800" };
     }

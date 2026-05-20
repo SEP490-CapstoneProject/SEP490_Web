@@ -7,6 +7,7 @@ import {
   CreateSubmissionPayload,
   SubmissionsResponse,
   SubmissionDetailResponse,
+  MyChallengeSubmissionsResponse
 } from "@/types/challenge";
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from "@/config/apiConfig";
 
@@ -610,28 +611,23 @@ export const getChallengeSubmissions = async (
 };
 
 /**
- * Get submission detail
+ * Get submission detail by ID
  * GET /api/submissions/{id}
  */
 export const getSubmissionDetail = async (
-  id: string,
+  submissionId: string,
   accessToken: string,
 ): Promise<SubmissionDetailResponse> => {
   try {
-    console.log(
-      "📡 [getSubmissionDetail] Fetching submission details for ID:",
-      id,
-    );
-    console.log("🔐 [getSubmissionDetail] Token exists:", !!accessToken);
-    console.log("🔐 [getSubmissionDetail] Token preview:", accessToken?.substring(0, 20) + "...");
+    console.log("📡 [getSubmissionDetail] Fetching submission:", submissionId);
 
     const url = buildApiUrl(
       API_BASE_URLS.challenge,
-      `/api/submissions/${id}`,
+      `/api/submissions/${submissionId}`,
     );
 
     console.log("🔗 [getSubmissionDetail] Full URL:", url);
-    console.log("📋 [getSubmissionDetail] Headers:", { Authorization: `Bearer ${accessToken?.substring(0, 20)}...` });
+    console.log("🔐 [getSubmissionDetail] Token exists:", !!accessToken);
 
     const response = await fetch(url, {
       method: "GET",
@@ -641,13 +637,14 @@ export const getSubmissionDetail = async (
     console.log(
       "📊 [getSubmissionDetail] Response status:",
       response.status,
+      response.statusText,
     );
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       console.log("❌ [getSubmissionDetail] Error response:", error);
       throw new Error(
-        error.message || `Failed to fetch submission details: ${response.statusText}`,
+        error.message || `Failed to fetch submission detail: ${response.statusText}`,
       );
     }
 
@@ -656,8 +653,73 @@ export const getSubmissionDetail = async (
     return data;
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : "Lỗi khi tải chi tiết bài nộp";
+      error instanceof Error
+        ? error.message
+        : "Failed to fetch submission detail";
     console.error("❌ [getSubmissionDetail] Error:", errorMessage);
+    throw error;
+  }
+};
+/**
+ * Get user's own submissions for a specific challenge
+ * GET /api/challenges/{challengeId}/my-submissions
+ */
+export const getMyChallengeSubmissions = async (
+  challengeId: string,
+  skip: number = 0,
+  take: number = 20,
+  accessToken: string,
+): Promise<MyChallengeSubmissionsResponse> => {
+  try {
+    console.log(
+      `📡 [getMyChallengeSubmissions] Fetching my submissions for challenge ID: ${challengeId}`,
+    );
+
+    const url = buildApiUrl(
+      API_BASE_URLS.challenge,
+      `/api/challenges/${challengeId}/my-submissions`,
+    );
+
+    const queryParams = new URLSearchParams({
+      skip: skip.toString(),
+      take: take.toString(),
+    });
+
+    const fullUrl = `${url}?${queryParams}`;
+    console.log("🔗 [getMyChallengeSubmissions] Full URL:", fullUrl);
+
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: getAuthHeader(accessToken),
+    });
+
+    console.log(
+      "📊 [getMyChallengeSubmissions] Response status:",
+      response.status,
+      response.statusText,
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      console.log("❌ [getMyChallengeSubmissions] Error response:", error);
+      throw new Error(
+        error.message ||
+          `Failed to fetch my submissions: ${response.statusText}`,
+      );
+    }
+
+    const data = await response.json();
+    console.log("✅ [getMyChallengeSubmissions] Success:", {
+      totalCount: data.totalCount,
+      itemCount: data.items?.length || 0,
+    });
+    return data;
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : "Lỗi khi tải danh sách bài nộp của tôi";
+    console.error("❌ [getMyChallengeSubmissions] Error:", errorMessage);
     throw error;
   }
 };
