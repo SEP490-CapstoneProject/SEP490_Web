@@ -10,23 +10,25 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { 
-  fetchPublicChallengeDetail, 
+import {
+  fetchPublicChallengeDetail,
   createSubmission,
-  getMyChallengeSubmissions 
+  getMyChallengeSubmissions,
 } from "@/services/challenge.api";
 import { useAppSelector } from "@/store/hook";
 import { Challenge, MyChallengeSubmissionsResponse } from "@/types/challenge";
 import CustomLoading from "@/components/Loading/Loading";
 import { notify } from "@/lib/toast";
+import { formatToLocalTime } from "@/utils/time";
 
 export default function ChallengeDetailTalent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [submissions, setSubmissions] = useState<MyChallengeSubmissionsResponse | null>(null);
-  
+  const [submissions, setSubmissions] =
+    useState<MyChallengeSubmissionsResponse | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +51,8 @@ export default function ChallengeDetailTalent() {
         const data = await fetchPublicChallengeDetail(id);
         setChallenge(data);
       } catch (err) {
-        const msg = err instanceof Error ? err.message : "Có lỗi khi tải dữ liệu";
+        const msg =
+          err instanceof Error ? err.message : "Có lỗi khi tải dữ liệu";
         setError(msg);
         notify.error(msg);
       } finally {
@@ -112,8 +115,13 @@ export default function ChallengeDetailTalent() {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error || "Không tìm thấy thử thách"}</p>
-          <button onClick={() => navigate(-1)} className="text-blue-600 hover:underline">
+          <p className="text-red-600 mb-4">
+            {error || "Không tìm thấy thử thách"}
+          </p>
+          <button
+            onClick={() => navigate(-1)}
+            className="text-blue-600 hover:underline"
+          >
             Quay lại
           </button>
         </div>
@@ -122,8 +130,13 @@ export default function ChallengeDetailTalent() {
   }
 
   const deadline = new Date(challenge.deadline);
-  const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  const difficulty = challenge.activeVersion?.difficultyLabel || challenge.difficultyLabel || "Unknown";
+  const daysLeft = Math.ceil(
+    (deadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+  );
+  const difficulty =
+    challenge.activeVersion?.difficultyLabel ||
+    challenge.difficultyLabel ||
+    "Unknown";
 
   const difficultyConfig: Record<string, { label: string; color: string }> = {
     Easy: { label: "Dễ", color: "bg-green-100 text-green-800" },
@@ -139,7 +152,6 @@ export default function ChallengeDetailTalent() {
   return (
     <div className="min-h-screen bg-slate-50 p-8">
       <div className="max-w-6xl mx-auto space-y-8">
-        
         {/* Nút quay lại và Tiêu đề */}
         <div>
           <button
@@ -151,9 +163,13 @@ export default function ChallengeDetailTalent() {
           </button>
 
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-slate-900 mb-3">{challenge.title}</h1>
+            <h1 className="text-3xl font-bold text-slate-900 mb-3">
+              {challenge.title}
+            </h1>
             <div className="flex items-center gap-3 flex-wrap">
-              <span className={`px-3 py-1 rounded text-sm font-medium ${currentDifficulty.color}`}>
+              <span
+                className={`px-3 py-1 rounded text-sm font-medium ${currentDifficulty.color}`}
+              >
                 {currentDifficulty.label}
               </span>
               {daysLeft > 0 ? (
@@ -177,7 +193,9 @@ export default function ChallengeDetailTalent() {
               <button
                 onClick={() => setActiveTab("details")}
                 className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
-                  activeTab === "details" ? "text-blue-600 border-blue-600" : "text-slate-600 border-transparent hover:text-slate-900"
+                  activeTab === "details"
+                    ? "text-blue-600 border-blue-600"
+                    : "text-slate-600 border-transparent hover:text-slate-900"
                 }`}
               >
                 Chi tiết
@@ -185,7 +203,9 @@ export default function ChallengeDetailTalent() {
               <button
                 onClick={() => setActiveTab("criteria")}
                 className={`px-4 py-3 font-semibold border-b-2 transition-colors ${
-                  activeTab === "criteria" ? "text-blue-600 border-blue-600" : "text-slate-600 border-transparent hover:text-slate-900"
+                  activeTab === "criteria"
+                    ? "text-blue-600 border-blue-600"
+                    : "text-slate-600 border-transparent hover:text-slate-900"
                 }`}
               >
                 Tiêu chí ({challenge.activeVersion?.criteria?.length || 0})
@@ -197,7 +217,9 @@ export default function ChallengeDetailTalent() {
               <div className="space-y-6">
                 {challenge.description && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-2 text-slate-800">Mô tả</h3>
+                    <h3 className="text-lg font-semibold mb-2 text-slate-800">
+                      Mô tả
+                    </h3>
                     <p className="text-slate-600 whitespace-pre-wrap leading-relaxed">
                       {challenge.description}
                     </p>
@@ -205,7 +227,9 @@ export default function ChallengeDetailTalent() {
                 )}
                 {challenge.expectedSolution && (
                   <div>
-                    <h3 className="text-lg font-semibold mb-2 text-slate-800">Giải pháp mong đợi</h3>
+                    <h3 className="text-lg font-semibold mb-2 text-slate-800">
+                      Giải pháp mong đợi
+                    </h3>
                     <p className="text-slate-600 whitespace-pre-wrap leading-relaxed">
                       {challenge.expectedSolution}
                     </p>
@@ -217,10 +241,17 @@ export default function ChallengeDetailTalent() {
             {activeTab === "criteria" && (
               <div className="space-y-4">
                 {challenge.activeVersion?.criteria?.map((c) => (
-                  <div key={c.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50/50">
+                  <div
+                    key={c.id}
+                    className="p-4 border border-slate-200 rounded-lg bg-slate-50/50"
+                  >
                     <h4 className="font-semibold text-slate-800">{c.name}</h4>
-                    <p className="text-sm text-slate-600 mt-1">{c.description}</p>
-                    <p className="text-blue-600 text-sm font-medium mt-2">{c.maxScore} điểm</p>
+                    <p className="text-sm text-slate-600 mt-1">
+                      {c.description}
+                    </p>
+                    <p className="text-blue-600 text-sm font-medium mt-2">
+                      {c.maxScore} điểm
+                    </p>
                   </div>
                 ))}
               </div>
@@ -238,7 +269,9 @@ export default function ChallengeDetailTalent() {
               <div className="mb-5">
                 <div className="flex items-center gap-2 mb-2">
                   <Code2 size={16} className="text-slate-600" />
-                  <label className="text-sm font-semibold text-slate-900">Mã nguồn</label>
+                  <label className="text-sm font-semibold text-slate-900">
+                    Mã nguồn
+                  </label>
                 </div>
                 <textarea
                   value={code}
@@ -251,7 +284,9 @@ export default function ChallengeDetailTalent() {
               <div className="mb-6">
                 <div className="flex items-center gap-2 mb-2">
                   <LinkIcon size={16} className="text-slate-600" />
-                  <label className="text-sm font-semibold text-slate-900">Link GitHub</label>
+                  <label className="text-sm font-semibold text-slate-900">
+                    Link GitHub
+                  </label>
                 </div>
                 <input
                   type="url"
@@ -295,37 +330,54 @@ export default function ChallengeDetailTalent() {
 
           <div className="space-y-6">
             {isLoadingSubmissions ? (
-              <p className="text-center py-12 text-slate-500">Đang tải bài nộp...</p>
+              <p className="text-center py-12 text-slate-500">
+                Đang tải bài nộp...
+              </p>
             ) : submissions?.items?.length ? (
               <div className="grid grid-cols-1 gap-6">
                 {submissions.items.map((sub) => (
-                  <div key={sub.id} className="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-all bg-slate-50/30">
+                  <div
+                    key={sub.id}
+                    className="border border-slate-200 rounded-xl p-6 hover:shadow-md transition-all bg-slate-50/30"
+                  >
                     <div className="flex justify-between items-start mb-4">
                       <div>
                         <p className="text-sm text-slate-500">
-                          Nộp lúc: {new Date(sub.submittedAt).toLocaleString("vi-VN")}
+                          Nộp lúc: {formatToLocalTime(sub.submittedAt)}
                         </p>
                       </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        sub.evaluationStatus === "GRADED" || sub.submissionStatus === "GRADED" 
-                          ? "bg-green-100 text-green-700" 
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}>
-                        {sub.submissionStatus === "Graded" ? "Đã chấm điểm" : sub.submissionStatus}
+                      <span
+                        className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          sub.evaluationStatus === "GRADED" ||
+                          sub.submissionStatus === "GRADED"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {sub.submissionStatus === "Graded"
+                          ? "Đã chấm điểm"
+                          : sub.submissionStatus}
                       </span>
                     </div>
 
                     {sub.evaluationScore !== null && (
                       <div className="flex items-center gap-2 mb-4 bg-amber-50/60 w-fit px-4 py-2 rounded-lg border border-amber-100">
-                        
-                        <span className="text-3xl font-bold text-amber-700">{sub.evaluationScore}</span>
-                        <span className="text-sm text-amber-600 font-medium">điểm</span>
+                        <span className="text-3xl font-bold text-amber-700">
+                          {sub.evaluationScore}
+                        </span>
+                        <span className="text-sm text-amber-600 font-medium">
+                          điểm
+                        </span>
                       </div>
                     )}
 
                     {sub.gitHubLink && (
-                      <a href={sub.gitHubLink} target="_blank" rel="noopener noreferrer"
-                         className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2 mb-4 w-fit">
+                      <a
+                        href={sub.gitHubLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-700 font-medium flex items-center gap-2 mb-4 w-fit"
+                      >
                         <ExternalLink size={18} />
                         Xem dự án trên GitHub
                       </a>
@@ -333,7 +385,9 @@ export default function ChallengeDetailTalent() {
 
                     {sub.submissionContent && (
                       <div className="mb-5">
-                        <p className="font-semibold text-sm mb-2 text-slate-700">Mã nguồn đã nộp:</p>
+                        <p className="font-semibold text-sm mb-2 text-slate-700">
+                          Mã nguồn đã nộp:
+                        </p>
                         <pre className="bg-slate-900 text-slate-100 p-4 rounded-lg text-sm font-mono whitespace-pre-wrap overflow-auto max-h-80 shadow-inner">
                           {sub.submissionContent}
                         </pre>
@@ -342,7 +396,9 @@ export default function ChallengeDetailTalent() {
 
                     {sub.feedback && (
                       <div>
-                        <p className="font-semibold text-sm mb-2 text-slate-700">Nhận xét từ AI:</p>
+                        <p className="font-semibold text-sm mb-2 text-slate-700">
+                          Nhận xét từ AI:
+                        </p>
                         <div className="bg-blue-50 border border-blue-100 p-4 rounded-lg text-slate-700 whitespace-pre-wrap leading-relaxed">
                           {sub.feedback}
                         </div>
@@ -354,13 +410,16 @@ export default function ChallengeDetailTalent() {
             ) : (
               <div className="text-center py-16 text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
                 <Code2 className="mx-auto text-slate-400 mb-3" size={40} />
-                <p className="font-medium">Bạn chưa có bài nộp nào cho thử thách này.</p>
-                <p className="text-sm text-slate-400 mt-1">Hãy chuẩn bị mã nguồn và nộp bài ở khung bên trên nhé!</p>
+                <p className="font-medium">
+                  Bạn chưa có bài nộp nào cho thử thách này.
+                </p>
+                <p className="text-sm text-slate-400 mt-1">
+                  Hãy chuẩn bị mã nguồn và nộp bài ở khung bên trên nhé!
+                </p>
               </div>
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

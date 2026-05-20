@@ -7,6 +7,7 @@ import { Challenge } from "@/types/challenge";
 import CustomLoading from "@/components/Loading/Loading";
 import { notify } from "@/lib/toast";
 import CreateChallengeForm from "./CreateChallengeForm";
+import { formatToLocalTime } from "@/utils/time";
 
 function ChallengeCard({
   challenge,
@@ -44,11 +45,11 @@ function ChallengeCard({
     setShowMenu(false);
   };
 
-  const deadline = new Date(challenge.deadline).toLocaleDateString("vi-VN");
-  const deadlineTime = new Date(challenge.deadline).toLocaleTimeString("vi-VN");
-  const now = new Date();
-  const deadlineDate = new Date(challenge.deadline);
-  const isExpired = deadlineDate < now;
+ const formattedDeadline = formatToLocalTime(challenge.deadline);
+
+  // Logic so sánh hạn chót vẫn cần ép về đúng mốc UTC/Local để tránh so lệch 7 tiếng
+  const cleanDeadlineStr = challenge.deadline.endsWith("Z") ? challenge.deadline : challenge.deadline + "Z";
+  const isExpired = new Date(cleanDeadlineStr) < new Date();
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
@@ -127,7 +128,7 @@ function ChallengeCard({
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-slate-500">Hạn chót:</span>
-          <span className="text-slate-900 font-medium">{deadline} {deadlineTime}</span>
+          <span className="text-slate-900 font-medium">{formattedDeadline}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Trạng thái:</span>

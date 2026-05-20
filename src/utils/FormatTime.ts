@@ -18,5 +18,8 @@ export const formatTimeAgo = (dateString: string): string => {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
+      hour: "2-digit",    // Thêm dòng này để hiển thị cả Giờ nếu thích
+      minute: "2-digit",
     });
+
   };

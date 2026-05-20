@@ -7,6 +7,7 @@ import { Challenge } from "@/types/challenge";
 import { ChallengeSubmissionDetail } from "@/types/challenge";
 import CustomLoading from "@/components/Loading/Loading";
 import { notify } from "@/lib/toast";
+import { formatToLocalTime } from "@/utils/time";
 
 export default function ChallengeDetailRecruiter() {
   const navigate = useNavigate();
@@ -287,16 +288,7 @@ export default function ChallengeDetailRecruiter() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-sm text-slate-600">
-                        {new Date(submission.submittedAt).toLocaleDateString(
-                          "vi-VN",
-                          {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          }
-                        )}
+                       {formatToLocalTime(submission.submittedAt)}
                       </td>
                       <td className="px-4 py-4 text-sm">
                         <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-semibold text-sm">
