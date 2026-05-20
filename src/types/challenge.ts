@@ -21,7 +21,7 @@ export interface Challenge {
   title: string;
   description?: string;
   expectedSolution?: string;
-  status?: "Draft" | "PendingReview"|"Published" | "Closed" | "Archived";
+  status?: "Draft" | "PendingReview"|"Published" | "Rejected" | "Expired";
   createdAt: string;
   createdById?: number;
   reviewedById?: number | null;
@@ -108,4 +108,26 @@ export interface ChallengePaginatedResponse {
 export interface CreateSubmissionPayload {
   content: string;
   githubUrl: string;
+}
+
+export interface MyChallengeSubmissionsResponse {
+  items: MyChallengeSubmission[];
+  totalCount: number;
+  skip: number;
+  take: number;
+}
+
+export interface MyChallengeSubmission {
+  id: string;
+  challengeId: string;
+  challengeTitle: string;
+  submissionStatus: string;
+  submittedAt: string;
+  submissionContent: string;
+  gitHubLink: string;
+  evaluationScore: number;
+  evaluationStatus: string;
+  evaluatedAt: string;
+  feedback: string;
+  attemptCount: number;
 }
