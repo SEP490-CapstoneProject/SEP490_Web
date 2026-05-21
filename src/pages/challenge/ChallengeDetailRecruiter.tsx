@@ -32,7 +32,6 @@ export default function ChallengeDetailRecruiter() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Có lỗi khi tải danh sách bài nộp";
         console.error("❌ Error loading submissions:", errorMessage);
-        // Không notify error ở đây để tránh ảnh hưởng đến trải nghiệm người dùng
       } finally {
         setIsLoadingSubmissions(false);
       }
@@ -54,7 +53,6 @@ export default function ChallengeDetailRecruiter() {
       setChallenge(challengeData);
       console.log("✅ [ChallengeDetailRecruiter] Challenge loaded:", challengeData);
 
-      // Load submissions after challenge is loaded
       await loadChallengeSubmissions(id);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Có lỗi khi tải dữ liệu";
@@ -78,10 +76,10 @@ export default function ChallengeDetailRecruiter() {
       setIsSubmitting(true);
       console.log("📡 Submitting challenge for review:", challenge.id);
       
-      // Thực hiện gọi API gửi duyệt
       const updatedChallenge = await submitChallengeForReview(challengeId, accessToken);
       
-      // Cập nhật lại state giúp UI đổi trạng thái lập tức
+      // Cập nhật lại state -> Thử thách chuyển sang "PendingReview"
+      // Lúc này nút "Tự xuất bản ngay" sẽ tự động được mở khóa (enable)
       setChallenge(updatedChallenge);
       notify.success("Gửi duyệt Admin thành công");
     } catch (err) {
@@ -99,10 +97,8 @@ export default function ChallengeDetailRecruiter() {
       setIsSubmitting(true);
       console.log("📡 Publishing challenge immediately:", challenge.id);
       
-      // Thực hiện gọi API tự xuất bản nhanh
       const updatedChallenge = await approveAndPublishChallenge(challengeId, accessToken);
       
-      // Cập nhật lại state giúp UI đổi tag sang "Đã xuất bản"
       setChallenge(updatedChallenge);
       notify.success("Xuất bản thử thách thành công");
     } catch (err) {
@@ -232,7 +228,7 @@ export default function ChallengeDetailRecruiter() {
             </button>
             <button
               onClick={handlePublishNow}
-              disabled={isSubmitting}
+              disabled={isSubmitting || challenge.status !== "PendingReview"}
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CheckCircle2 size={18} />

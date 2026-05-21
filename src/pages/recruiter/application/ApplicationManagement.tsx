@@ -4,6 +4,9 @@ import {
   Banknote,
   Clock,
   MoreVertical,
+  Loader,
+  AlertCircle,
+  X,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -14,6 +17,8 @@ import { useAppSelector } from "@/store/hook";
 import { Application, ApplicationStatus } from "@/types/application";
 import { notify } from "@/lib/toast";
 import { UpdateStatusModal } from "./UpdateStatusModal";
+import { portfolioService, PortfolioResponse } from "@/services/portfolio.api";
+import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
 
 type StatusFilterType = "Tất cả" | "Đơn mới, chờ xử lý" | "Đang xem xét" | "Đã chấp nhận" | "Đã từ chối";
 type TimeFilter = "Tất cả" | "Gần đây" | "6 tháng qua" | "Cũ hơn (>6 tháng)";
@@ -169,6 +174,12 @@ export default function ApplicationManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
+  // Portfolio detail modal state
+  const [showPortfolioDetailModal, setShowPortfolioDetailModal] = useState(false);
+  const [portfolioToView, setPortfolioToView] = useState<Application | null>(null);
+  const [portfolioDetail, setPortfolioDetail] = useState<PortfolioResponse | null>(null);
+  const [portfolioDetailLoading, setPortfolioDetailLoading] = useState(false);
+
   // Fetch applications from API
   useEffect(() => {
     const fetchApplications = async () => {
@@ -239,6 +250,33 @@ export default function ApplicationManagement() {
       )
     );
     handleCloseModal();
+  };
+
+  // Handle viewing portfolio
+  const handleViewPortfolio = async (app: Application) => {
+    if (!app.portfolioId || !accessToken) {
+      notify.error("Không thể tải portfolio");
+      return;
+    }
+
+    setPortfolioToView(app);
+    setShowPortfolioDetailModal(true);
+
+    try {
+      setPortfolioDetailLoading(true);
+      const detail = await portfolioService.fetchPortfolioByIdAPI(app.portfolioId, accessToken);
+      if (detail) {
+        setPortfolioDetail(detail);
+      } else {
+        notify.error("Không thể tải chi tiết portfolio");
+      }
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : "Lỗi khi tải chi tiết portfolio";
+      console.error("❌ Error loading portfolio detail:", errorMsg);
+      notify.error(errorMsg);
+    } finally {
+      setPortfolioDetailLoading(false);
+    }
   };
   
   return (
@@ -451,11 +489,7 @@ export default function ApplicationManagement() {
                                 type="button"
                                 size="sm"
                                 className="h-7 rounded-lg bg-blue-500 px-3 text-xs font-semibold text-white hover:bg-blue-600"
-                                onClick={() => {
-                                  if (app?.candidate?.userId) {
-                                    navigate(`/profile/${app.candidate.userId}`);
-                                  }
-                                }}
+                                onClick={() => handleViewPortfolio(app)}
                               >
                                 Xem hồ sơ
                               </Button>
@@ -514,6 +548,69 @@ export default function ApplicationManagement() {
             return await updateApplicationStatus(applicationId, statusCode, accessToken || undefined);
           }}
         />
+
+        {/* Portfolio Detail Modal */}
+        {showPortfolioDetailModal && portfolioToView && (
+          <>
+            <div
+              className="fixed inset-0 bg-black/50 z-40"
+              onClick={() => !portfolioDetailLoading && setShowPortfolioDetailModal(false)}
+            ></div>
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">Chi tiết Portfolio</h3>
+                    <p className="text-sm text-gray-500 mt-1">{portfolioToView.candidate?.name}</p>
+                  </div>
+                  <button
+                    onClick={() => setShowPortfolioDetailModal(false)}
+                    disabled={portfolioDetailLoading}
+                    className="p-1 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <X className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                  {portfolioDetailLoading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="flex flex-col items-center gap-3">
+                        <Loader className="w-8 h-8 text-blue-500 animate-spin" />
+                        <p className="text-slate-600">Đang tải chi tiết portfolio...</p>
+                      </div>
+                    </div>
+                  ) : portfolioDetail ? (
+                    <PortfolioRenderer
+                      blocks={portfolioDetail.blocks}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="flex flex-col items-center gap-4 text-center">
+                        <AlertCircle className="w-12 h-12 text-gray-300" />
+                        <p className="text-lg font-semibold text-gray-600">Không thể tải chi tiết portfolio</p>
+                        <p className="text-sm text-gray-500">Vui lòng thử lại</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex gap-3 p-6 border-t border-gray-200 bg-gray-50 sticky bottom-0">
+                  <button
+                    onClick={() => setShowPortfolioDetailModal(false)}
+                    disabled={portfolioDetailLoading}
+                    className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
