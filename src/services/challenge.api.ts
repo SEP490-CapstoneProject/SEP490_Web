@@ -253,14 +253,25 @@ export const updateChallenge = async (
       API_ENDPOINTS.challenge.update(String(challengeId)),
     );
 
+    console.log("🔗 [updateChallenge] Full URL:", url);
+    console.log("📦 [updateChallenge] Payload:", JSON.stringify(payload, null, 2));
+    console.log("🔐 [updateChallenge] Token exists:", !!accessToken);
+    console.log("📋 [updateChallenge] Headers:", {
+      Authorization: `Bearer ${accessToken?.slice(0, 20)}...`,
+      "Content-Type": "application/json",
+    });
+
     const response = await fetch(url, {
       method: "PUT",
       headers: getAuthHeader(accessToken),
       body: JSON.stringify(payload),
     });
 
+    console.log("📊 [updateChallenge] Response status:", response.status, response.statusText);
+
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
+      console.log("❌ [updateChallenge] Error response:", error);
       throw new Error(
         error.message || `Failed to update challenge: ${response.statusText}`,
       );

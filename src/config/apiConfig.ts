@@ -193,7 +193,7 @@ export const API_ENDPOINTS = {
     create: "/api/challenges",
     detail: (id: string) => `/api/challenges/${id}`,
     update: (id: string) => `/api/challenges/${id}`,
-    delete: (id: string) => `/api/challenges/${id}`,
+    delete: (id: string) => `/api/creator/challenges/${id}`,
     creatorList: "/api/creator/challenges",
     publicList: "/api/challenges/public",
     publicDetail: (id: string) => `/api/challenges/public/${id}`,
