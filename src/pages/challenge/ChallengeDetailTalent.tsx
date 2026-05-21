@@ -225,6 +225,63 @@ export default function ChallengeDetailTalent() {
                     </p>
                   </div>
                 )}
+                {challenge.activeVersion?.skillWeights &&
+                  Object.keys(challenge.activeVersion.skillWeights).length >
+                    0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3 text-slate-800 flex items-center gap-2">
+                        Đánh giá trọng số cho các kĩ năng
+                      </h3>
+
+                      <div className="space-y-4">
+                        {(() => {
+                          const weights = challenge.activeVersion.skillWeights;
+                          const total = Object.values(weights).reduce(
+                            (sum, w) => sum + w,
+                            0,
+                          );
+
+                          return Object.entries(weights)
+                            .sort(([, a], [, b]) => b - a) // Sắp xếp giảm dần
+                            .map(([skill, weight]) => {
+                              const percentage =
+                                total > 0
+                                  ? Math.round((weight / total) * 100)
+                                  : 0;
+
+                              return (
+                                <div
+                                  key={skill}
+                                  className="bg-slate-50 border border-slate-200 rounded-2xl p-5"
+                                >
+                                  <div className="flex justify-between items-center mb-3">
+                                    <span className="font-semibold text-slate-800 text-lg">
+                                      {skill}
+                                    </span>
+                                    <div className="text-right">
+                                      <span className="text-2xl font-bold text-blue-600">
+                                        {percentage}
+                                      </span>
+                                      <span className="text-blue-600">%</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Thanh tiến trình */}
+                                  <div className="h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-2.5 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all"
+                                      style={{ width: `${percentage}%` }}
+                                    />
+                                  </div>
+
+                                 
+                                </div>
+                              );
+                            });
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 {challenge.expectedSolution && (
                   <div>
                     <h3 className="text-lg font-semibold mb-2 text-slate-800">

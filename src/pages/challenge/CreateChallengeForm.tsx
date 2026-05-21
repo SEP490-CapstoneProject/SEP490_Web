@@ -128,10 +128,12 @@ export default function CreateChallengeForm({
 
       const payload: CreateChallengePayload = {
         title: formData.title.trim(),
-        description: formData.description?.trim() || undefined,
-        expectedSolution: formData.expectedSolution?.trim() || undefined,
+        description: formData.description?.trim() || "",
+        expectedSolution: formData.expectedSolution?.trim() || "",
         deadline: formData.deadline,
       };
+
+      console.log("📦 [CreateChallengeForm] Payload to send:", JSON.stringify(payload, null, 2));
 
       if (challengeId) {
         await updateChallenge(challengeId, payload, accessToken);
