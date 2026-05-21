@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, ShieldCheck, Inbox } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector } from "@/store/hook";
@@ -24,75 +24,82 @@ function ChallengeCard({
     challenge.activeVersion?.difficultyLabel ||
     challenge.difficultyLabel ||
     "Unknown";
-  // 1. Định nghĩa object chứa cả Màu cấu hình và Tên hiển thị tiếng Việt
+
   const difficultyConfig: Record<string, { label: string; color: string }> = {
-    Easy: { label: "Dễ", color: "bg-green-100 text-green-800" },
-    Medium: { label: "Vừa", color: "bg-yellow-100 text-yellow-800" },
-    Hard: { label: "Khó", color: "bg-red-100 text-red-800" },
+    Easy: { label: "Dễ", color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+    Medium: { label: "Vừa", color: "bg-amber-50 text-amber-700 border-amber-100" },
+    Hard: { label: "Khó", color: "bg-rose-50 text-rose-700 border-rose-100" },
   };
 
-  // 2. Lấy ra config dựa vào biến `difficulty` (nếu không khớp key nào thì dùng fallback mặc định)
   const currentDifficulty = difficultyConfig[difficulty] || {
-    label: difficulty || "Không xác định", // Giữ lại chữ cũ hoặc hiển thị mặc định
-    color: "bg-slate-100 text-slate-800",
+    label: difficulty || "Không xác định",
+    color: "bg-slate-50 text-slate-700 border-slate-200",
   };
-
-  // 3. Giờ bạn có 2 biến sạch sẽ để dùng trong JSX:
-  // - currentDifficulty.color (Dùng để cho vào className)
-  // - currentDifficulty.label (Dùng để hiển thị ra màn hình)
 
   return (
     <div
       onClick={onClick}
-      className="p-6 rounded-lg border border-slate-200 bg-white hover:shadow-lg hover:border-blue-300 transition-all cursor-pointer group"
+      className="flex flex-col justify-between p-6 rounded-xl border border-slate-200 bg-white hover:border-blue-400 hover:shadow-xl hover:shadow-slate-100 transition-all duration-300 cursor-pointer group"
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <h3 className="text-lg font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors line-clamp-2">
+      <div>
+        {/* Title and Badges */}
+        <div className="mb-4">
+          <h3 className="text-base font-bold text-slate-900 mb-3 group-hover:text-blue-600 transition-colors line-clamp-2 leading-snug">
             {challenge.title}
           </h3>
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`px-2 py-1 rounded text-sm font-medium ${currentDifficulty.color}`}
+              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${currentDifficulty.color}`}
             >
               {currentDifficulty.label}
             </span>
             {daysLeft > 0 && (
-              <div className="flex items-center gap-1 text-sm text-orange-600 font-medium">
-                <Clock size={14} />
+              <div className="inline-flex items-center gap-1 text-xs bg-orange-50 border border-orange-100 text-orange-600 px-2.5 py-0.5 rounded-full font-medium animate-pulse">
+                <Clock size={12} />
                 Còn {daysLeft} ngày
               </div>
             )}
           </div>
         </div>
-      </div>
 
-      {challenge.description && (
-        <p className="text-sm text-slate-600 mb-4 line-clamp-2">
-          {challenge.description}
-        </p>
-      )}
-
-      <div className="space-y-2 text-sm mb-4 border-t border-slate-100 pt-4">
-        <div className="flex justify-between">
-          <span className="text-slate-500">Hạn chót:</span>
-          <span className="text-slate-900 font-medium">
-            {deadline.toLocaleDateString("vi-VN")}
-          </span>
-        </div>
-        {challenge.activeVersion?.criteria && (
-          <div className="flex justify-between">
-            <span className="text-slate-500">Tiêu chí:</span>
-            <span className="text-slate-900 font-medium">
-              {challenge.activeVersion.criteria.length} tiêu chí
-            </span>
-          </div>
+        {/* Description */}
+        {challenge.description && (
+          <p className="text-sm text-slate-500 mb-5 line-clamp-2 leading-relaxed">
+            {challenge.description}
+          </p>
         )}
       </div>
 
-      <button className="w-full py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors">
-        Xem chi tiết
-      </button>
+      <div>
+        {/* Info Meta */}
+        <div className="space-y-2.5 text-xs mb-5 border-t border-slate-100 pt-4">
+          <div className="flex justify-between items-center">
+            <span className="text-slate-400 flex items-center gap-1">
+              <Calendar size={13} />
+              Hạn chót:
+            </span>
+            <span className="text-slate-700 font-semibold">
+              {deadline.toLocaleDateString("vi-VN")}
+            </span>
+          </div>
+          {challenge.activeVersion?.criteria && (
+            <div className="flex justify-between items-center">
+              <span className="text-slate-400 flex items-center gap-1">
+                <ShieldCheck size={13} />
+                Tiêu chí đánh giá:
+              </span>
+              <span className="text-slate-700 font-semibold bg-slate-100 px-2 py-0.5 rounded">
+                {challenge.activeVersion.criteria.length} tiêu chí
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Action Button Interaction */}
+        <button className="w-full py-2.5 px-4 bg-slate-50 border border-slate-200 text-slate-700 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 rounded-xl font-medium text-sm transition-all duration-300 shadow-sm">
+          Xem chi tiết thử thách
+        </button>
+      </div>
     </div>
   );
 }
@@ -141,43 +148,45 @@ export default function ChallengeTalent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
+    <div className="min-h-screen bg-slate-50/50 p-6 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <button
             onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4 font-medium"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 mb-2 font-medium transition-colors group"
           >
-            <ArrowLeft size={20} />
-            Quay lại
+            <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+            Quay lại trang trước
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-950 tracking-tight">
               Thử thách đang diễn ra
             </h1>
-            <p className="text-slate-500 mt-1">
-              Khám phá và tham gia các thử thách thú vị
+            <p className="text-sm text-slate-500 mt-1">
+              Khám phá năng lực bản thân và chinh phục các bài kiểm tra kỹ thuật thực chiến
             </p>
           </div>
         </div>
 
-        {/* Error */}
+        {/* Error State */}
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            {error}
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-xl text-rose-700 text-sm font-medium">
+            ⚠️ {error}
           </div>
         )}
 
-        {/* Content */}
+        {/* Grid List / Empty State */}
         {publicChallenges.length === 0 ? (
-          <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
-            <Clock size={48} className="mx-auto text-slate-400 mb-4" />
-            <h3 className="text-lg font-semibold text-slate-900 mb-2">
-              Chưa có thử thách nào
+          <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 shadow-sm max-w-xl mx-auto p-6">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+              <Inbox size={26} className="text-slate-400" />
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-1">
+              Chưa có thử thách nào khả dụng
             </h3>
-            <p className="text-slate-500">
-              Vui lòng quay lại sau để xem các thử thách mới
+            <p className="text-sm text-slate-500 max-w-xs mx-auto">
+              Hệ thống hiện tại chưa ghi nhận thử thách công khai nào. Vui lòng quay lại sau ít phút nhé!
             </p>
           </div>
         ) : (
