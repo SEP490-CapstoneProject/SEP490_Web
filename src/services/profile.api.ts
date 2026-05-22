@@ -14,11 +14,148 @@ export interface EmployeeProfile {
   userId: number;
   name: string;
   phone: string;
+  email?: string;
+  status?: string;
+  createAt?: string;
   coverImage?: string;
   avatar?: string;
 }
 
 // API configuration imported from centralized config
+
+/**
+ * Fetch employee by user ID
+ */
+export const fetchEmployeeByUserId = async (
+  userId: number,
+  accessToken: string,
+): Promise<EmployeeProfile> => {
+  try {
+    console.log("📡 [fetchEmployeeByUserId] Starting...");
+    console.log("👤 User ID:", userId);
+    console.log("🔐 Token available:", !!accessToken);
+
+    if (!userId) {
+      console.error("❌ No user ID provided!");
+      throw new Error("User ID is required.");
+    }
+
+    if (!accessToken) {
+      console.error("❌ No access token provided!");
+      throw new Error("Access token is missing. Please login again.");
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("⏱️ Employee by user ID fetch timeout after 30 seconds");
+      controller.abort();
+    }, 30000);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    const fullUrl = buildApiUrl(API_BASE_URLS.userProfile, `/Employee/by-user/${userId}`);
+    console.log("📡 Making request to:", fullUrl);
+
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: headers,
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log("📡 Employee by user ID API response status:", response.status);
+
+    let data: unknown;
+    let responseText: string = "";
+
+    // Try to read response body first
+    try {
+      responseText = await response.text();
+      console.log("📦 Raw response (first 500 chars):", responseText.substring(0, 500));
+    } catch (readError) {
+      console.error("❌ Error reading response body:", readError);
+      throw new Error("Failed to read server response");
+    }
+
+    // Handle 401 Unauthorized specifically
+    if (response.status === 401) {
+      console.error("❌ 401 Unauthorized - Token is invalid or expired");
+      throw new Error("Your session has expired. Please login again.");
+    }
+
+    // Try to parse JSON - be lenient with content-type check
+    if (responseText) {
+      try {
+        data = JSON.parse(responseText);
+        console.log("📦 Employee by user ID API response data:", data);
+      } catch (parseError) {
+        console.error("❌ JSON parse error:", parseError);
+        console.error("📦 Raw response text:", responseText);
+        throw new Error("Invalid response format from server");
+      }
+    }
+
+    if (!response.ok) {
+      const dataAsObj = data as Record<string, unknown> | null;
+      const errors = dataAsObj?.errors as (string | unknown)[] | undefined;
+      const errorMsg: string =
+        (typeof dataAsObj?.message === "string" ? dataAsObj.message : undefined) ||
+        (errors?.[0] && typeof errors[0] === "string" ? errors[0] : undefined) ||
+        `Server error: ${response.status} ${response.statusText}`;
+      console.error("❌ Employee by user ID fetch error:", errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Handle multiple possible response formats
+    let employeeData: unknown;
+    const dataAsObj = data as Record<string, unknown> | null;
+
+    // Try different extraction strategies
+    if (dataAsObj?.data && typeof dataAsObj.data === "object") {
+      // Format: { data: { employee } }
+      employeeData = dataAsObj.data;
+    } else if (dataAsObj) {
+      // Format: { employee } or { success: true, employee fields }
+      // Check if this looks like an employee object (has required fields)
+      const asEmployee = dataAsObj as any;
+      if (asEmployee.id || asEmployee.userId || asEmployee.name || asEmployee.email) {
+        employeeData = dataAsObj;
+      } else {
+        // Fallback: use the entire response
+        employeeData = dataAsObj;
+      }
+    } else {
+      employeeData = data;
+    }
+
+    if (!employeeData || typeof employeeData !== "object") {
+      console.warn("⚠️ Unexpected response format for employee by user ID");
+      console.warn("⚠️ employeeData:", employeeData);
+      console.warn("⚠️ full data:", data);
+      throw new Error("Invalid employee data format");
+    }
+
+    console.log("✅ Employee by user ID fetched successfully:", employeeData);
+    return employeeData as EmployeeProfile;
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      console.error("❌ [fetchEmployeeByUserId] CORS Error or Network Error:", error);
+      throw new Error(
+        "Cannot connect to server. Please check your internet connection.",
+      );
+    }
+    if (error instanceof Error) {
+      console.error("❌ [fetchEmployeeByUserId] Error:", error.message);
+      throw error;
+    }
+    throw new Error("Network error. Please check your connection");
+  }
+};
 
 /**
  * Fetch current employee/talent profile information

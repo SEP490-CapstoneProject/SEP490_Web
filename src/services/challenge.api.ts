@@ -7,7 +7,8 @@ import {
   CreateSubmissionPayload,
   SubmissionsResponse,
   SubmissionDetailResponse,
-  MyChallengeSubmissionsResponse
+  MyChallengeSubmissionsResponse,
+  SkillHistory
 } from "@/types/challenge";
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from "@/config/apiConfig";
 
@@ -731,6 +732,57 @@ export const getMyChallengeSubmissions = async (
         ? error.message
         : "Lỗi khi tải danh sách bài nộp của tôi";
     console.error("❌ [getMyChallengeSubmissions] Error:", errorMessage);
+    throw error;
+  }
+};
+
+/**
+ * Get portfolio skills history by userId
+ * GET /api/portfolio/skills/{userId}/history
+ */
+export const getPortfolioSkillsHistory = async (
+  userId: string,
+  accessToken: string,
+): Promise<SkillHistory[]> => {
+  try {
+    console.log("📡 [getPortfolioSkillsHistory] Fetching skills history for userId:", userId);
+
+    const url = buildApiUrl(
+      API_BASE_URLS.challenge,
+      API_ENDPOINTS.challenge.skillsHistory(userId),
+    );
+
+    console.log("🔗 [getPortfolioSkillsHistory] Full URL:", url);
+    console.log("🔐 [getPortfolioSkillsHistory] Token exists:", !!accessToken);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: getAuthHeader(accessToken),
+    });
+
+    console.log(
+      "📊 [getPortfolioSkillsHistory] Response status:",
+      response.status,
+      response.statusText,
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      console.log("❌ [getPortfolioSkillsHistory] Error response:", error);
+      throw new Error(
+        error.message || `Failed to fetch skills history: ${response.statusText}`,
+      );
+    }
+
+    const data: SkillHistory[] = await response.json();
+    console.log("✅ [getPortfolioSkillsHistory] Success:", {
+      skillCount: data?.length || 0,
+    });
+    return data;
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch skills history";
+    console.error("❌ [getPortfolioSkillsHistory] Error:", errorMessage);
     throw error;
   }
 };

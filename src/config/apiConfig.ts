@@ -198,6 +198,7 @@ export const API_ENDPOINTS = {
     publicList: "/api/challenges/public",
     publicDetail: (id: string) => `/api/challenges/public/${id}`,
     submissions: "/api/submissions",
+    skillsHistory: (userId: string) => `/api/portfolio/skills/${userId}/history`,
   },
 } as const;
 
