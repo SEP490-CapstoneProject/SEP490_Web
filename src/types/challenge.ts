@@ -131,3 +131,25 @@ export interface MyChallengeSubmission {
   feedback: string;
   attemptCount: number;
 }
+
+export interface PointTransaction {
+  transactionId: string;
+  points: number;
+  reason: string;
+  attemptCount: number;
+  sourceType: string;
+  sourceId: string;
+  createdAt: string;
+}
+
+export interface SkillHistory {
+  skillId: string;
+  skillName: string;
+  totalPoints: number;
+  masteryScore: number;
+  verificationLevel: number;
+  challengeCount: number;
+  lastVerifiedAt: string;
+  firstVerifiedAt: string;
+  pointTransactions: PointTransaction[];
+}
