@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, Send, AlertCircle, Eye } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Send, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppSelector } from "@/store/hook";
@@ -19,6 +19,7 @@ export default function ChallengeDetailRecruiter() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submissions, setSubmissions] = useState<ChallengeSubmissionDetail[]>([]);
   const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [expandedSubmissionId, setExpandedSubmissionId] = useState<string | null>(null);
 
   const loadChallengeSubmissions = useCallback(
     async (cId: string) => {
@@ -81,7 +82,7 @@ export default function ChallengeDetailRecruiter() {
       // Cập nhật lại state -> Thử thách chuyển sang "PendingReview"
       // Lúc này nút "Tự xuất bản ngay" sẽ tự động được mở khóa (enable)
       setChallenge(updatedChallenge);
-      notify.success("Gửi duyệt Admin thành công");
+      notify.success("Gửi thành công");
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Có lỗi khi gửi duyệt";
       notify.error(errorMessage);
@@ -224,7 +225,7 @@ export default function ChallengeDetailRecruiter() {
               className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send size={18} />
-              Gửi Admin duyệt
+              Gửi
             </button>
             <button
               onClick={handlePublishNow}
@@ -251,23 +252,21 @@ export default function ChallengeDetailRecruiter() {
               <p className="text-slate-500">Chưa có bài nộp nào</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Email</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Người nộp</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Thời điểm nộp</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Điểm</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Lần nộp</th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {submissions.map((submission) => (
-                    <tr key={submission.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-4 text-sm text-slate-600">{submission.userEmail}</td>
-                      <td className="px-4 py-4 text-sm">
+            <div className="space-y-3">
+              {submissions.map((submission) => (
+                <div key={submission.id}>
+                  {/* Submission Item Row */}
+                  <div className="border border-slate-200 rounded-lg hover:border-slate-300 hover:shadow-sm transition-all bg-white">
+                    <div className="grid grid-cols-12 gap-4 px-6 py-4 items-center">
+                      {/* Email */}
+                      <div className="col-span-2">
+                        <p className="text-xs text-slate-500 mb-1">Email</p>
+                        <p className="text-sm text-slate-600 truncate">{submission.userEmail}</p>
+                      </div>
+
+                      {/* User Info */}
+                      <div className="col-span-3">
+                        <p className="text-xs text-slate-500 mb-1">Người nộp</p>
                         <div className="flex items-center gap-2">
                           <img
                             src={submission.userAvatar}
@@ -278,37 +277,113 @@ export default function ChallengeDetailRecruiter() {
                                 "https://via.placeholder.com/32?text=Avatar";
                             }}
                           />
-                          <span className="text-slate-900 font-medium">
-                            {submission.userName}
-                          </span>
+                          <span className="text-sm text-slate-900 font-medium">{submission.userName}</span>
                         </div>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-600">
-                       {formatToLocalTime(submission.submittedAt)}
-                      </td>
-                      <td className="px-4 py-4 text-sm">
+                      </div>
+
+                      {/* Submit Time */}
+                      <div className="col-span-2">
+                        <p className="text-xs text-slate-500 mb-1">Thời điểm nộp</p>
+                        <p className="text-sm text-slate-600">{formatToLocalTime(submission.submittedAt)}</p>
+                      </div>
+
+                      {/* Score */}
+                      <div className="col-span-1">
+                        <p className="text-xs text-slate-500 mb-1">Điểm</p>
                         <span className="inline-flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-semibold text-sm">
                           {submission.evaluationScore}
                         </span>
-                      </td>
-                      <td className="px-4 py-4 text-sm text-slate-600">
-                        {submission.attemptCount}
-                      </td>
-                      <td className="px-4 py-4 text-sm">
+                      </div>
+
+                      {/* Attempt Count */}
+                      <div className="col-span-1">
+                        <p className="text-xs text-slate-500 mb-1">Lần nộp</p>
+                        <p className="text-sm text-slate-600">{submission.attemptCount}</p>
+                      </div>
+
+                      {/* Expand Button */}
+                      <div className="col-span-1 flex justify-center">
                         <button
                           onClick={() => {
-                            navigate(`/submission/${submission.id}`);
+                            setExpandedSubmissionId(
+                              expandedSubmissionId === submission.id ? null : submission.id
+                            );
                           }}
-                          className="flex items-center gap-1 px-3 py-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                          className="inline-flex items-center justify-center p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
                         >
-                          <Eye size={16} />
-                          Xem chi tiết
+                          {expandedSubmissionId === submission.id ? (
+                            <ChevronUp size={18} />
+                          ) : (
+                            <ChevronDown size={18} />
+                          )}
                         </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+
+                    {/* Expanded Details */}
+                    {expandedSubmissionId === submission.id && (
+                      <div className="border-t border-slate-200 px-6 py-4 bg-slate-50">
+                        <div className="space-y-4">
+                          {/* Submission Content */}
+                          <div>
+                            <h4 className="text-sm font-semibold text-slate-900 mb-2">Nội dung bài nộp</h4>
+                            <p className="text-sm text-slate-600 whitespace-pre-wrap bg-white rounded p-3 border border-slate-200">
+                              {submission.submissionContent || "Không có nội dung"}
+                            </p>
+                          </div>
+
+                          {/* GitHub Link */}
+                          {submission.gitHubLink && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-900 mb-2">GitHub Link</h4>
+                              <a
+                                href={submission.gitHubLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-blue-600 hover:text-blue-700 hover:underline break-all"
+                              >
+                                {submission.gitHubLink}
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Evaluation Details */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-900 mb-1">Ngày đánh giá</h4>
+                              <p className="text-sm text-slate-600">
+                                {submission.evaluatedAt
+                                  ? formatToLocalTime(submission.evaluatedAt)
+                                  : "Chưa đánh giá"}
+                              </p>
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-900 mb-1">Trạng thái đánh giá</h4>
+                              <p className="text-sm text-slate-600">
+                                {submission.evaluationStatus === "Pending"
+                                  ? "Chờ đánh giá"
+                                  : submission.evaluationStatus === "Completed"
+                                  ? "Đã đánh giá"
+                                  : submission.evaluationStatus}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Feedback */}
+                          {submission.feedback && (
+                            <div>
+                              <h4 className="text-sm font-semibold text-slate-900 mb-2">Nhận xét</h4>
+                              <p className="text-sm text-slate-600 whitespace-pre-wrap bg-white rounded p-3 border border-slate-200">
+                                {submission.feedback}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
