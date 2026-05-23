@@ -79,3 +79,27 @@ export interface CompanyPostDetail {
   media: PostMedia[];
   isSaved: boolean;
 }
+
+/**
+ * Search Company Posts response with pagination
+ * Used for /api/company-posts/search endpoint
+ */
+export interface SearchCompanyPostsResponse {
+  items: CompanyPostAPI[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/**
+ * Search parameters for company posts
+ */
+export interface SearchCompanyPostsParams {
+  position?: string;
+  salary?: string;
+  location?: string;
+  type?: string; // Full-time or Part-time
+  page?: number;
+  pageSize?: number;
+}

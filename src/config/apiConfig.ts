@@ -135,6 +135,7 @@ export const API_ENDPOINTS = {
   // Company/Job Post Endpoints
   company: {
     posts: "/company-posts",
+    search: "/company-posts/search",
     myPosts: "/company-posts/company",
     detail: (id: number) => `/company-posts/${id}`,
     save: (id: number) => `/company-posts/${id}/save`,

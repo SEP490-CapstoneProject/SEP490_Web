@@ -1,4 +1,4 @@
-import { CompanyPostsPaginatedResponse, CompanyPostDetail } from '@/types/companyPost';
+import { CompanyPostsPaginatedResponse, CompanyPostDetail, SearchCompanyPostsResponse, SearchCompanyPostsParams } from '@/types/companyPost';
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from '@/config/apiConfig';
 
 /**
@@ -962,6 +962,118 @@ export const updateCompanyPostFull = async (
       console.log("✅ Company post updated successfully via /full (no JSON content)");
       return { postId: parseInt(postId.toString()), message: "Cập nhật bài đăng thành công" };
     }
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      console.error("❌ CORS Error or Network Error:", error);
+      throw new Error("Cannot connect to server. Please check your internet connection.");
+    }
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Network error. Please check your internet connection.");
+  }
+};
+
+/**
+ * Search company posts with filters
+ * @param searchParams - Search parameters (position, salary, location, type, pagination)
+ * @param accessToken - Optional access token for authenticated requests
+ */
+export const searchCompanyPosts = async (
+  searchParams: SearchCompanyPostsParams,
+  accessToken?: string
+): Promise<SearchCompanyPostsResponse> => {
+  try {
+    console.log("📡 [searchCompanyPosts] Starting with params:", searchParams);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("⏱️ Search company posts timeout after 30 seconds");
+      controller.abort();
+    }, 30000);
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    
+    if (searchParams.position) {
+      params.append("position", searchParams.position);
+    }
+    if (searchParams.salary) {
+      params.append("salary", searchParams.salary);
+    }
+    if (searchParams.location) {
+      params.append("location", searchParams.location);
+    }
+    if (searchParams.type) {
+      params.append("type", searchParams.type);
+    }
+    
+    // Add pagination params
+    params.append("page", (searchParams.page || 1).toString());
+    params.append("pageSize", (searchParams.pageSize || 20).toString());
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    // Add authorization header if token is provided
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+
+    // Use the search endpoint
+    const fullUrl = buildApiUrl(API_BASE_URLS.company, API_ENDPOINTS.company.search) + `?${params.toString()}`;
+    console.log("📡 Making request to:", fullUrl);
+
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: headers,
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log("📡 Search company posts API response status:", response.status);
+
+    const contentType = response.headers.get("content-type");
+    let data: unknown;
+
+    if (contentType?.includes("application/json")) {
+      try {
+        data = await response.json();
+        console.log("📦 Response data:", data);
+      } catch (parseError) {
+        console.error("❌ JSON parse error:", parseError);
+        throw new Error("Invalid response format from server (JSON parse failed)");
+      }
+    } else {
+      console.error("❌ Invalid response content type:", contentType);
+      throw new Error("Server returned non-JSON response");
+    }
+
+    if (!response.ok) {
+      const errorMsg = (data as Record<string, unknown>)?.message || "Failed to search company posts";
+      console.error("❌ Fetch error:", errorMsg);
+      throw new Error(String(errorMsg));
+    }
+
+    // Validate response structure
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !Array.isArray((data as Record<string, unknown>).items)
+    ) {
+      console.error("❌ Invalid response format:", data);
+      throw new Error("Invalid response format from server");
+    }
+
+    console.log(
+      "✅ Company posts searched successfully:",
+      ((data as Record<string, unknown>).items as unknown[])?.length || 0,
+      "posts"
+    );
+    return data as SearchCompanyPostsResponse;
   } catch (error) {
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       console.error("❌ CORS Error or Network Error:", error);
