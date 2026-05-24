@@ -44,7 +44,7 @@ export const SkillsHistoryModal = ({
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Các kĩ năng</h2>
-            <p className="text-sm text-gray-500 mt-1">{userName}'s lịch sử kĩ năng</p>
+            <p className="text-sm text-gray-500 mt-1"> Lịch sử kĩ năng của {userName} </p>
           </div>
           <button
             onClick={onClose}
@@ -116,7 +116,7 @@ export const SkillsHistoryModal = ({
             </div>
           ) : (
             <div className="text-center py-12">
-              <p className="text-gray-500">No skills verified yet</p>
+              <p className="text-gray-500">Chưa có kĩ năng nào</p>
             </div>
           )}
         </div>
