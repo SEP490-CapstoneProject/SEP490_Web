@@ -5,7 +5,7 @@ import { getPortfolioSkillsHistory } from "@/services/challenge.api";
 import { SkillHistory } from "@/types/challenge";
 import { SkillsHistoryModal } from "@/components/portfolio/SkillsHistoryModal";
 import { fetchEmployeeByUserId } from "@/services/profile.api";
-import { ChevronLeft, ChevronRight, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trophy , BarChart2 } from "lucide-react";
 // import { Button } from "@/components/ui/button";
 import SortIcon from "@/assets/myWeb/sort.png";
 import ShareIcon from "@/assets/myWeb/share1.png";
@@ -322,9 +322,9 @@ export default function ExploreTab() {
               {/* Nút Xem lịch sử kỹ năng mới thêm vào */}
               <button
                 onClick={handleOpenSkillModal}
-                className="px-4 py-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md shadow-blue-100 active:scale-[0.95] flex items-center gap-2 text-sm"
+                className="flex items-center justify-center hover:scale-125 transition-all cursor-pointer"
               >
-                Kỹ năng
+                <BarChart2 className="text-indigo-500" size={24} />
               </button>
 
               {/* Nút Share */}

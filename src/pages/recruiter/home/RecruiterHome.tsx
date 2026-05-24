@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { ChevronLeft, ChevronRight, MessageSquare, BarChart2 } from "lucide-react"; // Bổ sung BarChart2 làm icon kỹ năng
 import { Button } from "../../../components/ui/button";
 import SortIcon from "../../../assets/myWeb/sort.png";
 import BookmarkIcon from "../../../assets/myWeb/bookmark.png";
@@ -13,8 +13,39 @@ import {
 import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
 import CommentModal from "./CommentModal";
 import BookmarkModal from "./BookmarkModal";
+import { SkillsHistoryModal } from "@/components/portfolio/SkillsHistoryModal"; // Import Modal lịch sử kỹ năng
+import { getPortfolioSkillsHistory } from "@/services/challenge.api"; // Import API lấy lịch sử kỹ năng
+import { fetchEmployeeByUserId } from "@/services/profile.api"; // Import API lấy profile để mapping userId
+import { SkillHistory } from "@/types/challenge"; // Import Type
 import { notify } from "@/lib/toast";
 import { RootState } from "@/store";
+
+// Hàm bổ trợ để trích xuất thông tin người dùng từ portfolio block nhằm lấy Name hiển thị trên Modal
+interface IntroData {
+  portfolioId: number;
+  position: string;
+  jobTitle?: string;
+  name?: string;
+  avatar?: string;
+  ranking?: { rankPosition: number; totalScore: number };
+}
+
+const extractIntroData = (portfolio: PortfolioMainBlockItem): IntroData | null => {
+  const blocks = Array.isArray(portfolio.blocks) ? portfolio.blocks : [portfolio.blocks];
+  for (const block of blocks) {
+    if (!block || block.type?.toUpperCase() !== "INTRO") continue;
+    const data = block.data as Record<string, unknown> || {};
+    return {
+      portfolioId: portfolio.portfolioId,
+      position: (data.studyField as string) || (data.position as string) || (data.jobTitle as string) || "",
+      jobTitle: (data.jobTitle as string) || "",
+      name: (data.name as string) || portfolio.portfolio?.name || "",
+      avatar: (data.avatar as string) || (data.image as string) || "",
+      ranking: portfolio.ranking
+    };
+  }
+  return null;
+};
 
 export default function RecruiterHome() {
   const navigate = useNavigate();
@@ -40,7 +71,46 @@ export default function RecruiterHome() {
     Map<number, { interestLevel: "LOW" | "MEDIUM" | "HIGH"; categoryId: number | null }>
   >(new Map());
 
+  // Các State xử lý phần Modal lịch sử kỹ năng tương tự ExploreTab
+  const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
+  const [skillHistory, setSkillHistory] = useState<SkillHistory[]>([]);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+
   const currentPortfolio = filteredPortfolios[currentIndex];
+
+  const currentUserName = currentPortfolio
+    ? extractIntroData(currentPortfolio)?.name ?? "User"
+    : "User";
+
+  // Hàm handle xử lý việc mở modal và gọi API bất đồng bộ theo 2 bước
+  const handleOpenSkillModal = async () => {
+    if (!currentPortfolio || !accessToken) {
+      notify.error("Không thể xác thực người dùng.");
+      return;
+    }
+
+    setIsSkillModalOpen(true);
+    setIsLoadingSkills(true);
+
+    try {
+      // Bước 1: Lấy userId từ employeeId của ứng viên hiện tại
+      const employeeProfile = await fetchEmployeeByUserId(
+        currentPortfolio.employeeId,
+        accessToken
+      );
+
+      // Bước 2: Dùng userId thu được từ profile để fetch lịch sử kỹ năng
+      const userId = String(employeeProfile.userId);
+      const data = await getPortfolioSkillsHistory(userId, accessToken);
+      setSkillHistory(data);
+    } catch (error) {
+      console.error("❌ Error fetching skills:", error);
+      notify.error("Không thể tải lịch sử kỹ năng.");
+      setSkillHistory([]);
+    } finally {
+      setIsLoadingSkills(false);
+    }
+  };
 
   // Load saved portfolios to restrict duplicate saves
   const loadSavedPortfolios = useCallback(async (token: string | null) => {
@@ -149,12 +219,14 @@ export default function RecruiterHome() {
   const handleNext = () => {
     if (currentIndex < filteredPortfolios.length - 1) {
       setCurrentIndex(currentIndex + 1);
+      setSkillHistory([]); // Clear lịch sử kỹ năng của user cũ khi chuyển trang
     }
   };
 
   const handlePrev = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
+      setSkillHistory([]); // Clear lịch sử kỹ năng của user cũ khi chuyển trang
     }
   };
 
@@ -377,9 +449,9 @@ export default function RecruiterHome() {
                 )}
               </div>
 
-              {/* Floating Action Bar - Similar to ExploreTab */}
+              {/* Floating Action Bar - Cách 1: Tích hợp nút Kỹ năng vào trong thanh Bar */}
               {!isCommentModalOpen && !isBookmarkModalOpen && (
-                <div className="fixed bottom-4 z-[100] w-fit px-6 py-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl flex items-center gap-10">
+                <div className="fixed bottom-4 z-[100] w-fit px-6 py-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl flex items-center gap-6">
                   {/* Previous Button */}
                   <button
                     onClick={handlePrev}
@@ -389,8 +461,18 @@ export default function RecruiterHome() {
                     <ChevronLeft size={32} strokeWidth={2.5} />
                   </button>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-12 border-x border-slate-100 px-12">
+                  {/* Action Buttons Container */}
+                  <div className="flex items-center gap-8 border-x border-slate-100 px-6">
+                    {/* Nút Xem lịch sử kỹ năng mới được tích hợp */}
+                    <button
+                      onClick={handleOpenSkillModal}
+                      className="flex items-center justify-center hover:scale-125 transition-all cursor-pointer"
+                      title="Xem lịch sử kỹ năng"
+                    >
+                      <BarChart2 className="text-indigo-500" size={24} />
+                    </button>
+
+                    {/* Nút Nhận xét */}
                     <button
                       onClick={() => setIsCommentModalOpen(true)}
                       className="flex items-center justify-center hover:scale-125 transition-all cursor-pointer"
@@ -398,6 +480,8 @@ export default function RecruiterHome() {
                     >
                       <MessageSquare className="text-blue-500" size={24} />
                     </button>
+
+                    {/* Nút Lưu Bookmark */}
                     <button
                       onClick={handleBookmark}
                       className="flex items-center justify-center hover:scale-125 transition-all cursor-pointer"
@@ -413,6 +497,8 @@ export default function RecruiterHome() {
                         }}
                       />
                     </button>
+
+                    {/* Nút Chia sẻ */}
                     <button
                       onClick={handleShare}
                       className="flex items-center justify-center hover:scale-125 transition-all cursor-pointer"
@@ -538,7 +624,6 @@ export default function RecruiterHome() {
               });
             }}
             onUnsave={() => {
-              // ← Xóa khỏi savedPortfolios khi bỏ lưu
               setSavedPortfolios((prev) => {
                 const next = new Set(prev);
                 next.delete(currentPortfolio.portfolioId);
@@ -552,6 +637,15 @@ export default function RecruiterHome() {
             }}
           />
         )}
+
+        {/* Skills History Modal - Đặt ở tầng dưới cùng để tránh bọc lồng phần tử */}
+        <SkillsHistoryModal
+          isOpen={isSkillModalOpen}
+          onClose={() => setIsSkillModalOpen(false)}
+          skills={skillHistory}
+          isLoading={isLoadingSkills}
+          userName={currentUserName}
+        />
       </div>
     </div>
   );
