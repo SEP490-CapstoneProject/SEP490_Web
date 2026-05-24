@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Trophy,
-} from "lucide-react";
-// import { Button } from "@/components/ui/button"; 
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
+import { getPortfolioSkillsHistory } from "@/services/challenge.api";
+import { SkillHistory } from "@/types/challenge";
+import { SkillsHistoryModal } from "@/components/portfolio/SkillsHistoryModal";
+import { fetchEmployeeByUserId } from "@/services/profile.api";
+import { ChevronLeft, ChevronRight, Trophy } from "lucide-react";
+// import { Button } from "@/components/ui/button";
 import SortIcon from "@/assets/myWeb/sort.png";
 import ShareIcon from "@/assets/myWeb/share1.png";
 import {
@@ -24,25 +26,31 @@ interface IntroData {
   ranking?: { rankPosition: number; totalScore: number };
 }
 
-const extractIntroData = (portfolio: PortfolioMainBlockItem): IntroData | null => {
+const extractIntroData = (
+  portfolio: PortfolioMainBlockItem,
+): IntroData | null => {
   const blocks = Array.isArray(portfolio.blocks)
     ? portfolio.blocks
     : [portfolio.blocks];
-  
+
   for (const block of blocks) {
     if (!block || block.type?.toUpperCase() !== "INTRO") continue;
-    
-    const data = block.data as Record<string, unknown> || {};
+
+    const data = (block.data as Record<string, unknown>) || {};
     return {
       portfolioId: portfolio.portfolioId,
-      position: (data.studyField as string) || (data.position as string) || (data.jobTitle as string) || "",
+      position:
+        (data.studyField as string) ||
+        (data.position as string) ||
+        (data.jobTitle as string) ||
+        "",
       jobTitle: (data.jobTitle as string) || "",
       name: (data.name as string) || portfolio.portfolio?.name || "",
       avatar: (data.avatar as string) || (data.image as string) || "",
-      ranking: portfolio.ranking
+      ranking: portfolio.ranking,
     };
   }
-  
+
   return null;
 };
 
@@ -50,17 +58,22 @@ export default function ExploreTab() {
   const navigate = useNavigate();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const accessToken = useSelector((state: RootState) => state.auth.accessToken);
   const [filteredPortfolios, setFilteredPortfolios] = useState<
     PortfolioMainBlockItem[]
   >([]);
   const [allPortfolios, setAllPortfolios] = useState<PortfolioMainBlockItem[]>(
     [],
   );
-  const [topPortfolios, setTopPortfolios] = useState<PortfolioMainBlockItem[]>([]);
+  const [topPortfolios, setTopPortfolios] = useState<PortfolioMainBlockItem[]>(
+    [],
+  );
   const [isSearching, setIsSearching] = useState(false);
 
   const currentPortfolio = filteredPortfolios[currentIndex];
-
+  const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
+  const [skillHistory, setSkillHistory] = useState<SkillHistory[]>([]);
+  const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const loadPortfolios = async () => {
     try {
       // Fetch top portfolio separately (sorted by ranking)
@@ -69,7 +82,7 @@ export default function ExploreTab() {
         const topPortfolio = topResponse.items[0];
         setTopPortfolios([topPortfolio]);
       }
-      
+
       // Fetch random portfolios for main view
       const response = await portfolioService.fetchAllPortfolios(1, 10000, "2");
       if (!response || !response.items || response.items.length === 0) {
@@ -91,20 +104,61 @@ export default function ExploreTab() {
   useEffect(() => {
     loadPortfolios();
   }, []);
+  const currentUserName = currentPortfolio
+    ? (extractIntroData(currentPortfolio)?.name ?? "User")
+    : "User";
+  const handleOpenSkillModal = async () => {
+    if (!currentPortfolio || !accessToken) {
+      notify.error("Không thể xác thực người dùng.");
+      return;
+    }
 
-  const handleNext = () => {
-    if (currentIndex < filteredPortfolios.length - 1)
-      setCurrentIndex(currentIndex + 1);
+    setIsSkillModalOpen(true);
+    setIsLoadingSkills(true);
+
+    try {
+      // Bước 1: Lấy userId từ employeeId
+      const employeeProfile = await fetchEmployeeByUserId(
+        currentPortfolio.employeeId, // hoặc currentPortfolio.employeeId tuỳ API
+        accessToken,
+      );
+
+      // Bước 2: Dùng userId từ profile để fetch skills
+      const userId = String(employeeProfile.userId);
+      const data = await getPortfolioSkillsHistory(userId, accessToken);
+      setSkillHistory(data);
+    } catch (error) {
+      console.error("❌ Error:", error);
+      notify.error("Không thể tải lịch sử kỹ năng.");
+      setSkillHistory([]);
+    } finally {
+      setIsLoadingSkills(false);
+    }
   };
+  const handleNext = () => {
+    if (currentIndex < filteredPortfolios.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setSkillHistory([]);
+    }
+  };
+
   const handlePrev = () => {
-    if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
+    if (currentIndex > 0) {
+      setCurrentIndex(currentIndex - 1);
+      setSkillHistory([]);
+    }
   };
 
   const handleSearch = async (query: string) => {
     setIsSearching(true);
     try {
       // Call API with search query parameter
-      const response = await portfolioService.fetchAllPortfolios(1, 10000, "2", query);
+      const response = await portfolioService.fetchAllPortfolios(
+        1,
+        10000,
+        "2",
+        query,
+      );
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
         setCurrentIndex(0);
@@ -125,7 +179,7 @@ export default function ExploreTab() {
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-    
+
     // Call handleSearch with debounce can be added if needed
     // For now, search as user types
     if (query.trim() === "") {
@@ -155,7 +209,9 @@ export default function ExploreTab() {
           {/* Header của thanh tìm kiếm */}
           <div className="flex items-center gap-2 mb-6">
             <img src={SortIcon} alt="Search" className="w-7 h-7" />
-            <h2 className="text-xl font-bold text-gray-900">Tìm kiếm Portfolio</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              Tìm kiếm Portfolio
+            </h2>
           </div>
 
           <div className="space-y-4">
@@ -251,7 +307,8 @@ export default function ExploreTab() {
         {filteredPortfolios.length === 0 ? (
           <div></div>
         ) : (
-          <div className="fixed bottom-4 z-[100] w-fit px-6 py-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl flex items-center gap-10">
+          <div className="fixed bottom-4 z-[100] w-fit px-6 py-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl flex items-center gap-6">
+            {/* Nút Prev */}
             <button
               onClick={handlePrev}
               disabled={currentIndex === 0}
@@ -260,7 +317,17 @@ export default function ExploreTab() {
               <ChevronLeft size={32} strokeWidth={2.5} />
             </button>
 
-            <div className="flex items-center gap-12 border-x border-slate-100 px-12">
+            {/* Khu vực chứa các nút chức năng ở giữa */}
+            <div className="flex items-center gap-6 border-x border-slate-100 px-6">
+              {/* Nút Xem lịch sử kỹ năng mới thêm vào */}
+              <button
+                onClick={handleOpenSkillModal}
+                className="px-4 py-2.5 rounded-xl font-semibold text-white bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md shadow-blue-100 active:scale-[0.95] flex items-center gap-2 text-sm"
+              >
+                Kỹ năng
+              </button>
+
+              {/* Nút Share */}
               <button className="hover:scale-125 transition-all cursor-pointer">
                 <img
                   src={ShareIcon}
@@ -270,8 +337,7 @@ export default function ExploreTab() {
               </button>
             </div>
 
-            {/* Next */}
-
+            {/* Nút Next */}
             <button
               onClick={handleNext}
               disabled={currentIndex === filteredPortfolios.length - 1}
@@ -289,7 +355,9 @@ export default function ExploreTab() {
           {/* Header */}
           <div className="flex items-center gap-2 mb-6">
             <Trophy size={24} className="text-yellow-500" />
-            <h2 className="text-xl font-bold text-gray-900">Portfolio được đánh giá cao nhất</h2>
+            <h2 className="text-xl font-bold text-gray-900">
+              Portfolio được đánh giá cao nhất
+            </h2>
           </div>
 
           {/* Top 1 Portfolio */}
@@ -314,7 +382,9 @@ export default function ExploreTab() {
               );
             })()
           ) : (
-            <p className="text-xs text-gray-400 text-center py-8">Chưa có dữ liệu</p>
+            <p className="text-xs text-gray-400 text-center py-8">
+              Chưa có dữ liệu
+            </p>
           )}
 
           {/* View Details Button */}
@@ -326,6 +396,13 @@ export default function ExploreTab() {
           </button>
         </div>
       </div>
+      <SkillsHistoryModal
+        isOpen={isSkillModalOpen}
+        onClose={() => setIsSkillModalOpen(false)}
+        skills={skillHistory}
+        isLoading={isLoadingSkills}
+        userName={currentUserName}
+      />
     </div>
   );
 }
