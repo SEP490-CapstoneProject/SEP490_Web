@@ -5,13 +5,13 @@ import { getPortfolioSkillsHistory } from "@/services/challenge.api";
 import { SkillHistory } from "@/types/challenge";
 import { SkillsHistoryModal } from "@/components/portfolio/SkillsHistoryModal";
 import { fetchEmployeeByUserId } from "@/services/profile.api";
-import { ChevronLeft, ChevronRight, Trophy , BarChart2 } from "lucide-react";
-// import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Trophy, BarChart2, Eye, EyeOff } from "lucide-react";
 import SortIcon from "@/assets/myWeb/sort.png";
 import ShareIcon from "@/assets/myWeb/share1.png";
 import {
   portfolioService,
   PortfolioMainBlockItem,
+  PortfolioPreview,
 } from "@/services/portfolio.api";
 import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
 import { notify } from "@/lib/toast";
@@ -74,26 +74,34 @@ export default function ExploreTab() {
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
   const [skillHistory, setSkillHistory] = useState<SkillHistory[]>([]);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
+
+  // --- Preview states ---
+  // undefined = chưa fetch / đang fetch, null = đã fetch nhưng không có preview, PortfolioPreview = có preview
+  const [currentPreview, setCurrentPreview] = useState<
+    PortfolioPreview | null | undefined
+  >(undefined);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+
+  // ----------------------------------------------------------------
+  // Data loading
+  // ----------------------------------------------------------------
+
   const loadPortfolios = async () => {
     try {
-      // Fetch top portfolio separately (sorted by ranking)
       const topResponse = await portfolioService.fetchAllPortfolios(1, 1, "0");
       if (topResponse && topResponse.items && topResponse.items.length > 0) {
-        const topPortfolio = topResponse.items[0];
-        setTopPortfolios([topPortfolio]);
+        setTopPortfolios([topResponse.items[0]]);
       }
 
-      // Fetch random portfolios for main view
       const response = await portfolioService.fetchAllPortfolios(1, 10000, "2");
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
         return;
       }
 
-      const portfolios = response.items;
-
-      setFilteredPortfolios(portfolios);
-      setAllPortfolios(portfolios);
+      setFilteredPortfolios(response.items);
+      setAllPortfolios(response.items);
       setCurrentIndex(0);
     } catch (error) {
       console.error("❌ Error loading portfolios:", error);
@@ -101,12 +109,45 @@ export default function ExploreTab() {
     }
   };
 
+  const fetchCurrentPreview = async (portfolio: PortfolioMainBlockItem) => {
+    if (!accessToken) return;
+
+    setIsLoadingPreview(true);
+    setCurrentPreview(undefined);
+    setShowPreview(true); // reset về hiển thị preview mỗi khi đổi portfolio
+
+    try {
+      const preview = await portfolioService.fetchPortfolioPreview(
+        portfolio.portfolioId,
+        accessToken,
+      );
+      setCurrentPreview(preview ?? null);
+    } catch {
+      setCurrentPreview(null);
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
   useEffect(() => {
     loadPortfolios();
   }, []);
+
+  // Fetch preview mỗi khi portfolio hiện tại thay đổi
+  useEffect(() => {
+    if (currentPortfolio) {
+      fetchCurrentPreview(currentPortfolio);
+    }
+  }, [currentPortfolio?.portfolioId]);
+
+  // ----------------------------------------------------------------
+  // Handlers
+  // ----------------------------------------------------------------
+
   const currentUserName = currentPortfolio
     ? (extractIntroData(currentPortfolio)?.name ?? "User")
     : "User";
+
   const handleOpenSkillModal = async () => {
     if (!currentPortfolio || !accessToken) {
       notify.error("Không thể xác thực người dùng.");
@@ -117,13 +158,10 @@ export default function ExploreTab() {
     setIsLoadingSkills(true);
 
     try {
-      // Bước 1: Lấy userId từ employeeId
       const employeeProfile = await fetchEmployeeByUserId(
-        currentPortfolio.employeeId, // hoặc currentPortfolio.employeeId tuỳ API
+        currentPortfolio.employeeId,
         accessToken,
       );
-
-      // Bước 2: Dùng userId từ profile để fetch skills
       const userId = String(employeeProfile.userId);
       const data = await getPortfolioSkillsHistory(userId, accessToken);
       setSkillHistory(data);
@@ -135,6 +173,7 @@ export default function ExploreTab() {
       setIsLoadingSkills(false);
     }
   };
+
   const handleNext = () => {
     if (currentIndex < filteredPortfolios.length - 1) {
       setCurrentIndex(currentIndex + 1);
@@ -152,7 +191,6 @@ export default function ExploreTab() {
   const handleSearch = async (query: string) => {
     setIsSearching(true);
     try {
-      // Call API with search query parameter
       const response = await portfolioService.fetchAllPortfolios(
         1,
         10000,
@@ -164,9 +202,7 @@ export default function ExploreTab() {
         setCurrentIndex(0);
         return;
       }
-
-      const portfolios = response.items;
-      setFilteredPortfolios(portfolios);
+      setFilteredPortfolios(response.items);
       setCurrentIndex(0);
     } catch (error) {
       console.error("❌ Error searching portfolios:", error);
@@ -179,11 +215,7 @@ export default function ExploreTab() {
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const query = e.target.value;
     setSearchQuery(query);
-
-    // Call handleSearch with debounce can be added if needed
-    // For now, search as user types
     if (query.trim() === "") {
-      // If search is cleared, show all portfolios
       setFilteredPortfolios(allPortfolios);
       setCurrentIndex(0);
     }
@@ -201,12 +233,25 @@ export default function ExploreTab() {
     setCurrentIndex(0);
   };
 
+  // ----------------------------------------------------------------
+  // Render helpers
+  // ----------------------------------------------------------------
+
+  // Điều kiện hiển thị ảnh preview
+  const hasPreviewImage = !!currentPreview?.imageUrl;
+  const shouldShowPreviewImage = !isLoadingPreview && hasPreviewImage && showPreview;
+  // Điều kiện hiển thị portfolio renderer
+  const shouldShowPortfolio = !isLoadingPreview && (!hasPreviewImage || !showPreview);
+
+  // ----------------------------------------------------------------
+  // JSX
+  // ----------------------------------------------------------------
+
   return (
     <div className="flex w-full min-h-screen">
-      {/* Search Bar - Top Section for XL screens */}
+      {/* Left Sidebar - Search */}
       <div className="hidden xl:block w-[360px] shrink-0 px-4">
         <div className="sticky top-16 w-full bg-white rounded-2xl p-6 shadow-md border border-gray-100 h-fit">
-          {/* Header của thanh tìm kiếm */}
           <div className="flex items-center gap-2 mb-6">
             <img src={SortIcon} alt="Search" className="w-7 h-7" />
             <h2 className="text-xl font-bold text-gray-900">
@@ -215,7 +260,6 @@ export default function ExploreTab() {
           </div>
 
           <div className="space-y-4">
-            {/* Search Input */}
             <div>
               <label className="text-sm font-bold text-gray-700 mb-2 block ml-1">
                 Nhập từ khóa tìm kiếm
@@ -226,27 +270,22 @@ export default function ExploreTab() {
                 value={searchQuery}
                 onChange={handleSearchInputChange}
                 onKeyPress={(e) => {
-                  if (e.key === "Enter") {
-                    handleSearchSubmit();
-                  }
+                  if (e.key === "Enter") handleSearchSubmit();
                 }}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-400 outline-none transition-all"
                 style={{ backgroundColor: "#F8FAFC" }}
               />
             </div>
 
-            {/* Search Button */}
             <button
               onClick={handleSearchSubmit}
               disabled={isSearching}
               className="w-full py-3 rounded-xl font-bold text-white shadow-lg shadow-blue-100 transition-all active:scale-[0.98]"
-              style={{
-                backgroundColor: isSearching ? "#1E40AF" : "#3B82F6",
-              }}
+              style={{ backgroundColor: isSearching ? "#1E40AF" : "#3B82F6" }}
             >
               {isSearching ? (
                 <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Đang tìm...</span>
                 </div>
               ) : (
@@ -254,7 +293,6 @@ export default function ExploreTab() {
               )}
             </button>
 
-            {/* Clear Search Button */}
             {searchQuery && (
               <button
                 onClick={handleClearSearch}
@@ -267,48 +305,84 @@ export default function ExploreTab() {
         </div>
       </div>
 
-      {/* Main Content Area */}
-
+      {/* Main Content */}
       <main className="flex-1 flex flex-col items-center py-8 px-6 overflow-x-hidden">
-        {/* Container chính bao bọc Portfolio */}
-
         <div className="w-full max-w-4xl space-y-6">
-          {/* Khung nội dung Portfolio */}
-
           <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden flex flex-col min-h-[750px] transition-all">
             <div className="flex-1 p-8 overflow-y-auto no-scrollbar scroll-smooth">
               {filteredPortfolios.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-[600px] text-slate-400">
                   <p className="text-6xl mb-6">🔍</p>
-
                   <h3 className="text-xl font-bold">Không tìm thấy ứng viên</h3>
-
                   <p className="mt-2">
                     Thử thay đổi bộ lọc để xem nhiều kết quả hơn
                   </p>
                 </div>
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <PortfolioRenderer
-                    blocks={
-                      Array.isArray(currentPortfolio?.blocks)
-                        ? currentPortfolio.blocks
-                        : [currentPortfolio?.blocks]
-                    }
-                    ranking={currentPortfolio?.ranking}
-                  />
+
+                  {/* ── Preview image skeleton khi đang tải ── */}
+                  {isLoadingPreview && (
+                    <div className="w-full h-56 bg-slate-100 rounded-2xl animate-pulse mb-6" />
+                  )}
+
+                  {/* ── Hiển thị ảnh preview (khi có và chưa ẩn) ── */}
+                  {shouldShowPreviewImage && (
+                    <div className="mb-6">
+                      <div className="w-full rounded-2xl overflow-hidden bg-slate-100 mb-3 ring-1 ring-slate-200">
+                        <img
+                          src={currentPreview!.imageUrl}
+                          alt="Bản xem trước portfolio"
+                          className="w-full h-auto object-contain"
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <button
+                          onClick={() => setShowPreview(false)}
+                          className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all active:scale-95"
+                        >
+                          <EyeOff size={15} />
+                          Ẩn bản xem trước
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Nút hiện lại preview (khi đã ẩn và có preview) ── */}
+                  {!isLoadingPreview && hasPreviewImage && !showPreview && (
+                    <div className="flex justify-center mb-5">
+                      <button
+                        onClick={() => setShowPreview(true)}
+                        className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all active:scale-95"
+                      >
+                        <Eye size={15} />
+                        Xem bản xem trước
+                      </button>
+                    </div>
+                  )}
+
+                  {/* ── Portfolio renderer ── */}
+                  {shouldShowPortfolio && (
+                    <PortfolioRenderer
+                      blocks={
+                        Array.isArray(currentPortfolio?.blocks)
+                          ? currentPortfolio.blocks
+                          : [currentPortfolio?.blocks]
+                      }
+                      ranking={currentPortfolio?.ranking}
+                    />
+                  )}
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* 2. Floating Action Bar - Đưa vào trong main để nó nằm giữa phần content */}
+        {/* Floating Action Bar */}
         {filteredPortfolios.length === 0 ? (
-          <div></div>
+          <div />
         ) : (
           <div className="fixed bottom-4 z-[100] w-fit px-6 py-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl flex items-center gap-6">
-            {/* Nút Prev */}
             <button
               onClick={handlePrev}
               disabled={currentIndex === 0}
@@ -317,9 +391,7 @@ export default function ExploreTab() {
               <ChevronLeft size={32} strokeWidth={2.5} />
             </button>
 
-            {/* Khu vực chứa các nút chức năng ở giữa */}
             <div className="flex items-center gap-6 border-x border-slate-100 px-6">
-              {/* Nút Xem lịch sử kỹ năng mới thêm vào */}
               <button
                 onClick={handleOpenSkillModal}
                 className="flex items-center justify-center hover:scale-125 transition-all cursor-pointer"
@@ -327,7 +399,6 @@ export default function ExploreTab() {
                 <BarChart2 className="text-indigo-500" size={24} />
               </button>
 
-              {/* Nút Share */}
               <button className="hover:scale-125 transition-all cursor-pointer">
                 <img
                   src={ShareIcon}
@@ -337,7 +408,6 @@ export default function ExploreTab() {
               </button>
             </div>
 
-            {/* Nút Next */}
             <button
               onClick={handleNext}
               disabled={currentIndex === filteredPortfolios.length - 1}
@@ -349,10 +419,9 @@ export default function ExploreTab() {
         )}
       </main>
 
-      {/* Right Sidebar - Top Ranked Portfolio */}
+      {/* Right Sidebar - Top Ranked */}
       <div className="hidden xl:block w-[320px] shrink-0 px-4 py-8">
         <div className="sticky top-16 w-full bg-white rounded-2xl p-6 shadow-md border border-gray-100 h-fit">
-          {/* Header */}
           <div className="flex items-center gap-2 mb-6">
             <Trophy size={24} className="text-yellow-500" />
             <h2 className="text-xl font-bold text-gray-900">
@@ -360,13 +429,11 @@ export default function ExploreTab() {
             </h2>
           </div>
 
-          {/* Top 1 Portfolio */}
           {topPortfolios.length > 0 && extractIntroData(topPortfolios[0]) ? (
             (() => {
               const introData = extractIntroData(topPortfolios[0]);
               return (
                 <div className="flex flex-col items-center text-center mb-6">
-                  {/* Avatar */}
                   {introData?.avatar && (
                     <img
                       src={introData.avatar}
@@ -374,7 +441,6 @@ export default function ExploreTab() {
                       className="w-20 h-20 rounded-full object-cover border-2 border-purple-200 mb-4"
                     />
                   )}
-                  {/* Name */}
                   <p className="text-lg font-bold text-gray-900">
                     {introData?.name || "Ứng viên"}
                   </p>
@@ -387,7 +453,6 @@ export default function ExploreTab() {
             </p>
           )}
 
-          {/* View Details Button */}
           <button
             onClick={() => navigate("/ranking")}
             className="w-full py-3 rounded-xl font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg shadow-blue-200 active:scale-[0.98]"
@@ -396,6 +461,7 @@ export default function ExploreTab() {
           </button>
         </div>
       </div>
+
       <SkillsHistoryModal
         isOpen={isSkillModalOpen}
         onClose={() => setIsSkillModalOpen(false)}
