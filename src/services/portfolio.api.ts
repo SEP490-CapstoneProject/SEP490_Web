@@ -172,6 +172,35 @@ export type CriteriaItem = {
   isActive: boolean;
 };
 
+export type PortfolioPreviewJson = {
+  title: string;
+  keySkills: string;
+  specialization: string;
+  recentProjects: string;
+  achievement: string;
+  summary: string;
+};
+
+export type PortfolioPreview = {
+  id: number;
+  portfolioId: number;
+  previewJson: PortfolioPreviewJson;
+  highlightsDescription: string;
+  imageUrl: string;
+  imageId: string;
+  version: number;
+  regeneratedCount: number;
+  createdAt: string;
+  updatedAt: string;
+  generationModel: string;
+  tokensUsed: number;
+};
+
+export type PortfolioPreviewResponse = {
+  success: boolean;
+  data: PortfolioPreview;
+};
+
 export const PORTFOLIO_MOCK: PortfolioResponse[] = [
   {
     portfolioId: 12,
@@ -3655,6 +3684,86 @@ export const fetchCriteria = async (accessToken: string): Promise<CriteriaItem[]
   }
 };
 
+// Fetch portfolio preview
+export const fetchPortfolioPreview = async (
+  portfolioId: number,
+  accessToken: string,
+): Promise<PortfolioPreview | undefined> => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+    const endpoint = `${API_BASE_URL}/portfolios/${portfolioId}/preview`;
+
+    if (!accessToken) {
+      throw new Error("Access token is missing. Please login again.");
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    const response = await fetch(endpoint, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.status === 401) {
+      throw new Error("Your session has expired. Please login again.");
+    }
+
+    if (response.status === 404) {
+      return undefined;
+    }
+
+    // ✅ Fix: Đọc text trước, parse JSON trực tiếp — KHÔNG check content-type
+    // Bug cũ: nếu server trả content-type != "application/json" thì data = undefined
+    const responseText = await response.text();
+
+    if (!responseText?.trim()) {
+      return undefined;
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new Error("Invalid response format from server");
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        data?.message ||
+        data?.errors?.[0] ||
+        `Server error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // ✅ Fix: Unwrap cả 2 format trong 1 bước
+    // Format 1: { success: true, data: { previewJson, ... } }
+    // Format 2: { previewJson, ... } (direct)
+    const payload = (data?.success && data?.data) ? data.data : data;
+
+    if (!payload?.previewJson) {
+      console.warn("[fetchPortfolioPreview] Missing previewJson in response");
+      return undefined;
+    }
+
+    return payload as PortfolioPreview;
+
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Cannot connect to server. Please check your internet connection.");
+    }
+    if (error instanceof Error) throw error;
+    throw new Error("Network error. Please check your connection");
+  }
+};
+
 export const portfolioService = {
   fetchPortfolio,
   fetchPortfolioById,
@@ -3688,4 +3797,5 @@ export const portfolioService = {
   followPortfolio,
   fetchSavedPortfolios,
   fetchCriteria,
+  fetchPortfolioPreview,
 };

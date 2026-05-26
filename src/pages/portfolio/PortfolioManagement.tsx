@@ -23,6 +23,7 @@ import CustomLoading from "@/components/Loading/Loading";
 const ProfileCard = ({
   data,
   onViewDetail,
+  onViewPreview,
   onEdit,
   onDelete,
   isPrimary,
@@ -35,6 +36,7 @@ const ProfileCard = ({
 }: {
   data: PortfolioMainBlockItem;
   onViewDetail: (portfolioId: number) => void;
+  onViewPreview: (portfolioId: number) => void;
   onEdit: (portfolioId: number) => void;
   onDelete: (portfolioId: number) => void;
   isPrimary: boolean;
@@ -114,12 +116,25 @@ const ProfileCard = ({
                 <div className="border-t border-slate-100  my-1"></div>
                 <button
                   onClick={() => {
-                    isPublic ? onUnsetPublic(data.portfolioId) : onSetPublic(data.portfolioId);
+                    if (isPublic) {
+                      onUnsetPublic(data.portfolioId);
+                    } else {
+                      onSetPublic(data.portfolioId);
+                    }
                     setShowMenu(false);
                   }}
                   className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50  cursor-pointer"
                 >
                   <Eye size={14} /> {isPublic ? "Hủy" : "Đặt"} công khai
+                </button>
+                <button
+                  onClick={() => {
+                    onViewPreview(data.portfolioId);
+                    setShowMenu(false);
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50  cursor-pointer"
+                >
+                  <Eye size={14} /> Xem bản preview
                 </button>
                 <button
                   onClick={() => {
@@ -293,6 +308,10 @@ export default function ProfileManagement() {
 
   const handleViewDetail = (portfolioId: number) => {
     navigate(`/portfolio/${portfolioId}`);
+  };
+
+  const handleViewPreview = (portfolioId: number) => {
+    navigate(`/portfolio/${portfolioId}/preview`);
   };
 
   const handleEdit = (portfolioId: number) => {
@@ -491,6 +510,7 @@ export default function ProfileManagement() {
                     key={portfolio.portfolioId}
                     data={portfolio}
                     onViewDetail={handleViewDetail}
+                    onViewPreview={handleViewPreview}
                     onEdit={handleEdit}
                     onDelete={handleDeletePortfolio}
                     isPrimary={portfolio.isMain || false}
