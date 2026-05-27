@@ -198,6 +198,7 @@ export type PortfolioPreview = {
 
 export type PortfolioPreviewResponse = {
   success: boolean;
+  message: string;
   data: PortfolioPreview;
 };
 
@@ -3684,6 +3685,81 @@ export const fetchCriteria = async (accessToken: string): Promise<CriteriaItem[]
   }
 };
 
+export const generatePortfolioPreview = async (
+  portfolioId: number,
+  accessToken: string,
+  highlightsDescription?: string,
+): Promise<PortfolioPreview> => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+    const endpoint = `${API_BASE_URL}/portfolios/${portfolioId}/preview/generate`;
+
+    if (!accessToken) {
+      throw new Error("Access token is missing. Please login again.");
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    // Đổi tên để tránh shadow với payload_response bên dưới
+    const requestBody = highlightsDescription ? { highlightsDescription } : {};
+
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.status === 401) {
+      throw new Error("Your session has expired. Please login again.");
+    }
+
+    const responseText = await response.text();
+
+    if (!responseText?.trim()) {
+      throw new Error("Empty response from server");
+    }
+
+    let parsed: PortfolioPreviewResponse;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch {
+      throw new Error("Invalid response format from server");
+    }
+
+    if (!response.ok) {
+      // Dùng parsed thay vì any để có type safety
+      const errData = parsed as any;
+      throw new Error(
+        errData?.message ||
+        errData?.errors?.[0] ||
+        `Server error: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // ✅ Dùng type đã định nghĩa, unwrap rõ ràng
+    if (!parsed?.success || !parsed?.data?.previewJson) {
+      throw new Error("Invalid preview data received from server");
+    }
+
+    return parsed.data;
+
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      throw new Error("Cannot connect to server. Please check your internet connection.");
+    }
+    if (error instanceof Error) throw error;
+    throw new Error("Failed to generate preview. Please try again.");
+  }
+};
+
 // Fetch portfolio preview
 export const fetchPortfolioPreview = async (
   portfolioId: number,
@@ -3797,5 +3873,6 @@ export const portfolioService = {
   followPortfolio,
   fetchSavedPortfolios,
   fetchCriteria,
+  generatePortfolioPreview,
   fetchPortfolioPreview,
 };

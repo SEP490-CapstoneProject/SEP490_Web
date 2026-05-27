@@ -75,6 +75,9 @@ const PortfolioViewPage = lazy(
 const PreviewPortfolio = lazy(
   () => import("./pages/portfolio/PreviewPortfolio"),
 );
+const CreatePreview = lazy(
+  () => import("./pages/portfolio/CreatePreview"),
+);
 const NotificationsPage = lazy(
   () => import("./pages/notification/NotificationsPage"),
 );
@@ -279,6 +282,7 @@ function AppContent() {
           <Route path="/portfolio/create" element={<CreatePortfolio />} />
           <Route path="/portfolio/:id/edit" element={<EditPortfolio />} />
           <Route path="/portfolio/:portfolioId/preview" element={<PreviewPortfolio />} />
+          <Route path="/portfolio/:portfolioId/create-preview" element={<CreatePreview />} />
           <Route path="/emptyPortfolio" element={<EmptyPortfolioPage />} />
           <Route path="/community" element={<CommunityPost />} />
           <Route path="/community/:id" element={<CommunityPostDetail />} />
