@@ -32,8 +32,10 @@ export type PortfolioResponse = {
 
 export type PortfolioMainBlockItem = {
   portfolioId: number;
+  userId?: number;
   employeeId: number;
-  userId: number;
+  moderationStatus?: string;
+  moderationReason?: string;
   portfolio: {
     name: string;
     status: number;
@@ -73,6 +75,14 @@ export type PortfolioAPIResponse = {
   ranking?: Ranking;
   blocks: PortfolioBlock[];
   reviewers?: Reviewer[];
+};
+
+// Type for portfolio creation response
+export type PortfolioCreatedResponse = {
+  portfolioId: number;
+  message: string;
+  moderationStatus?: string;
+  moderationReason?: string;
 };
 
 export type SavePortfolioPayload = {
@@ -1613,7 +1623,7 @@ export const createPortfolioAPI = async (
   },
   accessToken: string,
   files?: File[],
-): Promise<{ portfolioId: number; message: string }> => {
+): Promise<PortfolioCreatedResponse> => {
   let timeoutId: NodeJS.Timeout | null = null;
   
   try {
@@ -1790,12 +1800,14 @@ export const createPortfolioAPI = async (
     }
 
     // Validate response has required fields
-    if (!data || typeof data.portfolioId === "undefined") {
+    if (!data || typeof data.portfolioId === "undefined" || !data.message) {
       console.error("❌ Invalid response format:", data);
-      throw new Error("Invalid response format from server - missing portfolioId");
+      throw new Error("Invalid response format from server - missing required fields (portfolioId or message)");
     }
 
     console.log("✅ Portfolio created successfully:", data.portfolioId);
+    console.log("📋 Moderation Status:", data.moderationStatus || "N/A");
+    console.log("📋 Moderation Reason:", data.moderationReason || "N/A");
     return data;
   } catch (error) {
     // Clear timeout if still active
@@ -1830,7 +1842,7 @@ export const updatePortfolioAPI = async (
   },
   accessToken: string,
   files?: File[],
-): Promise<{ portfolioId: number; message: string }> => {
+): Promise<PortfolioCreatedResponse> => {
   let timeoutId: NodeJS.Timeout | null = null;
   
   try {
@@ -2018,12 +2030,14 @@ export const updatePortfolioAPI = async (
     }
 
     // Validate response has required fields
-    if (!data || typeof data.portfolioId === "undefined") {
+    if (!data || typeof data.portfolioId === "undefined" || !data.message) {
       console.error("❌ Invalid response format:", data);
-      throw new Error("Invalid response format from server - missing portfolioId");
+      throw new Error("Invalid response format from server - missing required fields (portfolioId or message)");
     }
 
     console.log("✅ Portfolio updated successfully:", data.portfolioId);
+    console.log("📋 Moderation Status:", data.moderationStatus || "N/A");
+    console.log("📋 Moderation Reason:", data.moderationReason || "N/A");
     return data;
   } catch (error) {
     // Clear timeout if still active

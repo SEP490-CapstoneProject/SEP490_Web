@@ -120,6 +120,9 @@ export const API_ENDPOINTS = {
     register: "/Auth/register",
     refreshToken: "/Auth/refresh-token",
     logout: "/Auth/logout",
+    forgotPassword: "/Auth/forgot-password",
+    verifyResetToken: "/Auth/verify-reset-token",
+    resetPassword: "/Auth/reset-password",
   },
 
   // Application Endpoints

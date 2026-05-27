@@ -13,12 +13,13 @@ import {
   loginStart,
 } from "@/store/features/auth/authSlice";
 import { notify } from "@/lib/toast";
-
-export const LoginForm = () => {
+interface LoginFormProps {
+  onForgotPassword: () => void;
+}
+export const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -176,12 +177,13 @@ export const LoginForm = () => {
       )}
 
       <div className="flex justify-end">
-        <a
-          href="#"
-          className="text-sm font-medium text-[#0288D1] hover:underline"
+        <button
+          type="button"
+          onClick={onForgotPassword}
+          className="text-sm font-medium text-[#0288D1] hover:underline cursor-pointer"
         >
           Quên mật khẩu?
-        </a>
+        </button>
       </div>
 
       <Button

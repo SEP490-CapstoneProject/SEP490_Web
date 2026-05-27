@@ -1,4 +1,4 @@
-import { LoginRequest, LoginResponse, RegisterRequest } from "@/types/auth";
+import { AuthCommonResponse, ForgotPasswordRequest, LoginRequest, LoginResponse, RegisterRequest, ResetPasswordRequest, VerifyResetTokenRequest } from "@/types/auth";
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from "@/config/apiConfig";
 
 // API_BASE_URL được cấu hình từ config tập trung
@@ -237,6 +237,153 @@ export const authAPI = {
         throw error;
       }
       throw new Error("Network error. Please check your connection");
+    }
+  },
+  // 1. API: Yêu cầu gửi mã OTP quên mật khẩu
+  forgotPassword: async (payload: ForgotPasswordRequest): Promise<AuthCommonResponse> => {
+    try {
+      console.log("🔒 [forgotPassword] Bắt đầu yêu cầu reset cho email:", payload.email);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.warn("⏱️ Forgot password request timeout sau 30 giây");
+        controller.abort();
+      }, 30000);
+
+      const response = await fetch(buildApiUrl(API_BASE_URLS.gateway, API_ENDPOINTS.auth.forgotPassword || "/Auth/forgot-password"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      console.log("📡 Forgot password response status:", response.status);
+
+      const contentType = response.headers.get("content-type");
+      let data: AuthCommonResponse;
+
+      if (contentType?.includes("application/json")) {
+        try {
+          data = await response.json();
+          console.log("📦 Response data:", { success: data.success, message: data.message });
+        } catch (parseError) {
+          console.error("❌ JSON parse error:", parseError);
+          throw new Error("Định dạng phản hồi từ server không hợp lệ.");
+        }
+      } else {
+        throw new Error("Server không trả về định dạng JSON.");
+      }
+
+      if (!response.ok) {
+        const errorMsg = data.errors?.[0] || data.message || `Lỗi server: ${response.status}`;
+        console.error("❌ Forgot password error:", errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof TypeError && error.message === "Failed to fetch") {
+        throw new Error("Không thể kết nối tới server. Vui lòng kiểm tra internet.");
+      }
+      if (error instanceof Error) throw error;
+      throw new Error("Có lỗi xảy ra. Vui lòng thử lại.");
+    }
+  },
+
+  // 2. API: Xác thực mã token OTP
+  verifyResetToken: async (payload: VerifyResetTokenRequest): Promise<AuthCommonResponse> => {
+    try {
+      console.log("🔒 [verifyResetToken] Đang xác thực mã OTP cho:", payload.email);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 30000);
+
+      const response = await fetch(buildApiUrl(API_BASE_URLS.gateway, API_ENDPOINTS.auth.verifyResetToken || "/Auth/verify-reset-token"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      console.log("📡 Verify token response status:", response.status);
+
+      const contentType = response.headers.get("content-type");
+      let data: AuthCommonResponse;
+
+      if (contentType?.includes("application/json")) {
+        data = await response.json();
+      } else {
+        throw new Error("Server không trả về định dạng JSON.");
+      }
+
+      if (!response.ok) {
+        const errorMsg = data.errors?.[0] || data.message || "Xác thực mã OTP thất bại.";
+        throw new Error(errorMsg);
+      }
+
+      if (!data.success) {
+        throw new Error(data.message || "Mã xác thực không chính xác hoặc đã hết hạn.");
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof Error) throw error;
+      throw new Error("Lỗi kết nối mạng.");
+    }
+  },
+
+  // 3. API: Tiến hành đặt lại mật khẩu mới
+  resetPassword: async (payload: ResetPasswordRequest): Promise<AuthCommonResponse> => {
+    try {
+      console.log("🔒 [resetPassword] Tiến hành đặt lại mật khẩu mới cho:", payload.email);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 30000);
+
+      const response = await fetch(buildApiUrl(API_BASE_URLS.gateway, API_ENDPOINTS.auth.resetPassword || "/Auth/reset-password"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      console.log("📡 Reset password response status:", response.status);
+
+      const contentType = response.headers.get("content-type");
+      let data: AuthCommonResponse;
+
+      if (contentType?.includes("application/json")) {
+        data = await response.json();
+      } else {
+        throw new Error("Server không trả về định dạng JSON.");
+      }
+
+      if (!response.ok) {
+        const errorMsg = data.errors?.[0] || data.message || "Đặt lại mật khẩu thất bại.";
+        throw new Error(errorMsg);
+      }
+
+      if (!data.success) {
+        throw new Error(data.message || "Không thể đặt lại mật khẩu.");
+      }
+
+      return data;
+    } catch (error) {
+      if (error instanceof Error) throw error;
+      throw new Error("Lỗi kết nối mạng.");
     }
   },
 };
