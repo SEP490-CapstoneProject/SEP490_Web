@@ -3691,7 +3691,7 @@ export const generatePortfolioPreview = async (
   highlightsDescription?: string,
 ): Promise<PortfolioPreview> => {
   try {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+    const API_BASE_URL = API_BASE_URLS.portfolio;
     const endpoint = `${API_BASE_URL}/portfolios/${portfolioId}/preview/generate`;
 
     if (!accessToken) {
@@ -3766,7 +3766,7 @@ export const fetchPortfolioPreview = async (
   accessToken: string,
 ): Promise<PortfolioPreview | undefined> => {
   try {
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+    const API_BASE_URL = API_BASE_URLS.portfolio;
     const endpoint = `${API_BASE_URL}/portfolios/${portfolioId}/preview`;
 
     if (!accessToken) {
