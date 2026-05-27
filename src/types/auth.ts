@@ -32,3 +32,27 @@ export interface LoginResponse {
   data: AuthData;
   errors: string[];
 }
+
+// --- FORGOT PASSWORD TYPES ---
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface VerifyResetTokenRequest {
+  email: string;
+  token: string;
+}
+
+export interface ResetPasswordRequest {
+  email: string;
+  token: string;
+  newPassword: string;
+}
+
+export interface AuthCommonResponse {
+  success: boolean;
+  message: string;
+  data: null;
+  errors: string[];
+}
