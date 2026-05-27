@@ -5,6 +5,7 @@ import { portfolioService, PortfolioPreview } from "@/services/portfolio.api";
 import { useAppSelector } from "@/store/hook";
 import { notify } from "@/lib/toast";
 import CustomLoading from "@/components/Loading/Loading";
+import { formatToLocalTime } from "@/utils/time";
 
 export default function PreviewPortfolio() {
   const navigate = useNavigate();
@@ -104,10 +105,10 @@ export default function PreviewPortfolio() {
               Hãy tạo bản preview để xem thông tin của portfolio
             </p>
             <button
-              onClick={() => navigate(`/portfolio/${portfolioId}/edit`)}
+              onClick={() => navigate(`/portfolio/${portfolioId}/create-preview`)}
               className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold transition-all active:scale-95"
             >
-              Chỉnh sửa Portfolio
+              Tạo bản preview
             </button>
           </div>
         </div>
@@ -177,10 +178,10 @@ export default function PreviewPortfolio() {
               tạo preview.
             </p>
             <button
-              onClick={() => navigate(`/portfolio/${preview.portfolioId}/edit`)}
+              onClick={() => navigate(`/portfolio/${preview.portfolioId}/create-preview`)}
               className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold transition-all active:scale-95"
             >
-              Chỉnh sửa Portfolio
+              Tạo bản preview
             </button>
           </div>
         </div>
@@ -297,7 +298,7 @@ export default function PreviewPortfolio() {
               <p>
                 Cập nhật lần cuối:{" "}
                 {preview.updatedAt
-                  ? new Date(preview.updatedAt).toLocaleString("vi-VN")
+                  ? formatToLocalTime(preview.updatedAt)
                   : "N/A"}
               </p>
               <p>Mô hình AI: {preview.generationModel || "N/A"}</p>
