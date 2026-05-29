@@ -153,3 +153,31 @@ export interface SkillHistory {
   firstVerifiedAt: string;
   pointTransactions: PointTransaction[];
 }
+
+// Type cho một item trong danh sách "Đã hoàn thành"
+export interface MyCompletedChallenge {
+  challengeId: string;
+  challengeTitle: string;
+  challengeDescription?: string;
+  challengeDeadline: string; // ISO string
+  publishedAt: string;
+  
+  latestSubmissionId: string;
+  latestSubmissionStatus: string; // Ví dụ: "Graded", "Pending", ...
+  latestSubmittedAt: string;
+  
+  latestEvaluationScore: number | null;
+  latestEvaluationStatus: string; // Ví dụ: "Completed", "Failed", ...
+  latestEvaluatedAt: string;
+  
+  latestFeedback?: string;
+  attemptCount: number;
+}
+
+// Type cho response đầy đủ của API /api/submissions/me/challenges
+export interface MyCompletedChallengesResponse {
+  items: MyCompletedChallenge[];
+  totalCount: number;
+  skip: number;
+  take: number;
+}
