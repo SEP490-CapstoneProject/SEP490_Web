@@ -7,11 +7,13 @@ import { useAppSelector, useAppDispatch } from '@/store/hook';
 import { addSavedPost, removeSavedPost } from '@/store/features/savedPosts/savedPostsSlice';
 import { notify } from '@/lib/toast';
 import { ApplicationModal } from './ApplicationModal';
+import { ReportPostModal } from './ReportpostModal';
 import ArrowBackIcon from './../../assets/myWeb/arrowback.png';
 import BookmarkIcon from './../../assets/myWeb/bookmark.png';
 import ShareIcon from './../../assets/myWeb/share1.png';
 import Dot from './../../assets/myWeb/dots 1.png';
 import LightIcon from './../../assets/myWeb/light.png';
+
 export const PostDetail = () => {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
@@ -21,12 +23,12 @@ export const PostDetail = () => {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [applicationSuccess, setApplicationSuccess] = useState(false);
   const accessToken = useAppSelector((state) => state.auth.accessToken);
   const savedPostIds = useAppSelector((state) => state.savedPosts.savedPostIds);
   const isSaved = postId ? savedPostIds.includes(Number(postId)) : false;
 
-  // Debug: Log postId from URL params
   useEffect(() => {
     console.log("🔍 PostDetail - postId from URL params:", postId, "Type:", typeof postId);
   }, [postId]);
@@ -69,7 +71,6 @@ export const PostDetail = () => {
       
       await saveCompanyPost(Number(postId), accessToken || undefined);
       
-      // Toggle logic: if already saved, remove it; otherwise, add it
       if (isSaved) {
         dispatch(removeSavedPost(Number(postId)));
         notify.success("Đã xóa bài viết khỏi danh sách lưu");
@@ -92,7 +93,6 @@ export const PostDetail = () => {
     console.log("✅ Application submitted successfully:", applicationId);
     setApplicationSuccess(true);
     
-    // Reset the success message after 3 seconds
     setTimeout(() => {
       setApplicationSuccess(false);
     }, 3000);
@@ -100,11 +100,18 @@ export const PostDetail = () => {
 
   const handleOpenApplicationModal = () => {
     if (!accessToken) {
-      // Redirect to login if not authenticated
       navigate('/login');
       return;
     }
     setIsApplicationModalOpen(true);
+  };
+
+  const handleOpenReportModal = () => {
+    if (!accessToken) {
+      navigate('/login');
+      return;
+    }
+    setIsReportModalOpen(true);
   };
 
   if (isLoading) {
@@ -133,32 +140,30 @@ export const PostDetail = () => {
   return (
     <div className="min-h-screen">
       {/* Header */}
-     
-        <div className="max-w-7xl mx-auto px-4  py-4 sticky flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 py-4 sticky flex items-center justify-between">
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+        >
+          <img src={ArrowBackIcon} alt="Back" className="w-6 h-6" />
+          <span>Quay lại</span>
+        </button>
+        <div className="flex items-center gap-6">
           <button
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+            onClick={handleSavePost}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
+            title={isSaved ? "Xóa bài viết khỏi danh sách lưu" : "Lưu bài viết"}
           >
-            <img src={ArrowBackIcon} alt="Back" className="w-6 h-6" />
-            <span>Quay lại</span>
+            <img src={BookmarkIcon} alt="Bookmark" className="w-5 h-5 transition-all duration-300" style={{ filter: isSaved ? 'brightness(0) saturate(100%) invert(82%) sepia(76%) saturate(417%) hue-rotate(4deg)' : 'brightness(0) saturate(100%) invert(100%)' }} />
+            <span>{isSaved ? 'Đã lưu' : 'Lưu tin'}</span>
           </button>
-          <div className="flex items-center gap-6">
-            <button
-              onClick={handleSavePost}
-              disabled={isSaving}
-              className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all group"
-              title={isSaved ? "Xóa bài viết khỏi danh sách lưu" : "Lưu bài viết"}
-            >
-              <img src={BookmarkIcon} alt="Bookmark" className="w-5 h-5 transition-all duration-300" style={{ filter: isSaved ? 'brightness(0) saturate(100%) invert(82%) sepia(76%) saturate(417%) hue-rotate(4deg)' : 'brightness(0) saturate(100%) invert(100%)' }} />
-              <span>{isSaved ? 'Đã lưu' : 'Lưu tin'}</span>
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400">
-              <img src={ShareIcon} alt="Share" className="w-5 h-5" style={{ filter: 'brightness(0)' }} />
-              <span>Chia sẻ</span>
-            </button>
-          </div>
+          <button className="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 rounded-lg bg-white hover:border-gray-400">
+            <img src={ShareIcon} alt="Share" className="w-5 h-5" style={{ filter: 'brightness(0)' }} />
+            <span>Chia sẻ</span>
+          </button>
         </div>
-     
+      </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -167,7 +172,7 @@ export const PostDetail = () => {
           <div className="col-span-2 space-y-6">
             {/* Main Job Post Section */}
             <div className="bg-white rounded-lg overflow-hidden shadow-sm">
-              {/* Header Background with Image or Fallback Gradient */}
+              {/* Header Background */}
               <div 
                 className="h-48 relative bg-cover bg-center"
                 style={{
@@ -179,15 +184,14 @@ export const PostDetail = () => {
                   backgroundColor: !post.coverImageUrl && !post.media?.[0]?.url ? '#86efac' : undefined
                 }}
               >
-                {/* Optional overlay for better text readability if needed */}
                 {(post.coverImageUrl || post.media?.[0]?.url) && (
                   <div className="absolute inset-0 bg-black/5"></div>
                 )}
               </div>
 
-              {/* Content Section with Overlapping Avatar */}
+              {/* Content Section */}
               <div className="relative px-6 pb-6">
-                {/* Avatar positioned to overlap header and content */}
+                {/* Avatar */}
                 <div className="absolute -top-10 left-1/2 transform -translate-x-1/2">
                   <div className="w-20 h-20 rounded-full bg-white border-4 border-white shadow-lg flex items-center justify-center overflow-hidden">
                     {post.companyAvatar ? (
@@ -215,9 +219,7 @@ export const PostDetail = () => {
 
                 {/* Job Description */}
                 <div className="pt-6">
-                  <h2 className="text-lg font-bold text-gray-900 mb-4">
-                    Mô tả công việc
-                  </h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">Mô tả công việc</h2>
                   <p className="text-gray-700 leading-relaxed mb-8">
                     {post.jobDescription || "Không có mô tả công việc"}
                   </p>
@@ -225,11 +227,8 @@ export const PostDetail = () => {
 
                 {/* Requirements */}
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900 mb-4">
-                    Yêu cầu chuyên môn
-                  </h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">Yêu cầu chuyên môn</h2>
 
-                  {/* Mandatory Requirements */}
                   {post.requirementsMandatory && (
                     <div className="mb-6">
                       <div className="inline-block bg-red-100 text-red-600 px-3 py-1 rounded-full text-xs font-semibold mb-3">
@@ -238,7 +237,7 @@ export const PostDetail = () => {
                       <ul className="space-y-2 text-gray-700">
                         {post.requirementsMandatory.split('.').filter((req) => req.trim()).map((req, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                          <span className="text-black font-bold mt-1">•</span>
+                            <span className="text-black font-bold mt-1">•</span>
                             <span>{req.trim()}</span>
                           </li>
                         ))}
@@ -246,7 +245,6 @@ export const PostDetail = () => {
                     </div>
                   )}
 
-                  {/* Preferred Requirements */}
                   {post.requirementsPreferred && (
                     <div className="mb-8">
                       <div className="inline-block bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-xs font-semibold mb-3">
@@ -255,7 +253,7 @@ export const PostDetail = () => {
                       <ul className="space-y-2 text-gray-700">
                         {post.requirementsPreferred.split('.').filter((req) => req.trim()).map((req, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                          <span className="text-black font-bold mt-1">•</span>
+                            <span className="text-black font-bold mt-1">•</span>
                             <span>{req.trim()}</span>
                           </li>
                         ))}
@@ -270,9 +268,7 @@ export const PostDetail = () => {
 
                 {/* Benefits */}
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900 mb-4">
-                    Quyền lợi & đãi ngộ
-                  </h2>
+                  <h2 className="text-lg font-bold text-gray-900 mb-4">Quyền lợi & đãi ngộ</h2>
                   {post.benefits ? (
                     <ul className="space-y-2 text-gray-700">
                       {post.benefits.split('.').filter((benefit) => benefit.trim()).map((benefit, idx) => (
@@ -286,30 +282,25 @@ export const PostDetail = () => {
                     <p className="text-gray-600">Không có quyền lợi được liệt kê</p>
                   )}
                 </div>
-
               </div>
             </div>
           </div>
 
-          {/* Right Column - Job Info & Apply */}
+          {/* Right Column */}
           <div className="col-span-1">
             {/* Info Card */}
             <div className="bg-white rounded-lg p-6 shadow-sm top-24">
               <div className="space-y-4">
                 {/* Salary */}
                 <div>
-                  <h3 className="text-sm text-gray-600 font-semibold mb-2">
-                    Mức lương đề xuất
-                  </h3>
+                  <h3 className="text-sm text-gray-600 font-semibold mb-2">Mức lương đề xuất</h3>
                   <p className="text-lg font-bold" style={{ color: '#3B82F6' }}>{post.salary} VND</p>
                 </div>
 
                 {/* Location */}
                 <div>
                   <div className="flex justify-between items-start">
-                    <h3 className="text-sm text-gray-600 font-semibold">
-                      Địa điểm làm việc
-                    </h3>
+                    <h3 className="text-sm text-gray-600 font-semibold">Địa điểm làm việc</h3>
                     <p className="text-gray-900 text-right text-sm">{post.address}</p>
                   </div>
                 </div>
@@ -317,9 +308,7 @@ export const PostDetail = () => {
                 {/* Employment Type */}
                 <div>
                   <div className="flex justify-between items-start">
-                    <h3 className="text-sm text-gray-600 font-semibold">
-                      Hình thức
-                    </h3>
+                    <h3 className="text-sm text-gray-600 font-semibold">Hình thức</h3>
                     <p className="text-gray-900">{post.employmentType}</p>
                   </div>
                 </div>
@@ -327,9 +316,7 @@ export const PostDetail = () => {
                 {/* Experience */}
                 <div>
                   <div className="flex justify-between items-start">
-                    <h3 className="text-sm text-gray-600 font-semibold">
-                      Yêu cầu kinh nghiệm
-                    </h3>
+                    <h3 className="text-sm text-gray-600 font-semibold">Yêu cầu kinh nghiệm</h3>
                     <p className="text-gray-900">
                       {post.experienceYear != null ? `+${post.experienceYear} năm` : "Không yêu cầu"}
                     </p>
@@ -339,9 +326,7 @@ export const PostDetail = () => {
                 {/* Quantity */}
                 <div>
                   <div className="flex justify-between items-start">
-                    <h3 className="text-sm text-gray-600 font-semibold">
-                      Số lượng
-                    </h3>
+                    <h3 className="text-sm text-gray-600 font-semibold">Số lượng</h3>
                     <p className="text-gray-900">
                       {post.quantity != null ? `${post.quantity} ứng viên` : "Không xác định"}
                     </p>
@@ -380,6 +365,19 @@ export const PostDetail = () => {
                 </div>
               </div>
             </div>
+
+            {/* Report Button */}
+            <div className="mt-3 flex justify-center">
+              <button
+                onClick={handleOpenReportModal}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-red-500 transition-colors py-1 px-2 rounded hover:bg-red-50"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H13.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                </svg>
+                Báo cáo bài đăng
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -393,6 +391,15 @@ export const PostDetail = () => {
           onSubmitSuccess={handleApplicationSuccess}
           postTitle={post.position}
           companyName={post.companyName}
+        />
+      )}
+
+      {/* Report Modal */}
+      {postId && (
+        <ReportPostModal
+          postId={Number(postId)}
+          isOpen={isReportModalOpen}
+          onClose={() => setIsReportModalOpen(false)}
         />
       )}
     </div>

@@ -205,8 +205,7 @@ export default function RecruiterHome() {
       await loadSavedPortfolios(accessToken);
     } catch (error) {
       console.error("❌ Error loading portfolios:", error);
-      notify.error("Không thể tải danh sách portfolio. Vui lòng thử lại sau.");
-      setFilteredPortfolios([]);
+      // Keep loading state active, don't show error - wait for successful load
     } finally {
       setIsLoading(false);
     }
@@ -255,7 +254,7 @@ export default function RecruiterHome() {
       setCurrentIndex(0);
     } catch (error) {
       console.error("❌ Error searching portfolios:", error);
-      notify.error("Lỗi khi tìm kiếm portfolio.");
+      // Keep current state on search error
     } finally {
       setIsSearching(false);
     }
@@ -384,24 +383,35 @@ export default function RecruiterHome() {
         {/* Main Content - Candidate Card */}
         <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-6 xl:ml-88 mr-2 lg:mr-4 ">
           {filteredPortfolios.length === 0 ? (
-            <div className="relative w-full max-w-3xl min-h-128 rounded-2xl overflow-hidden shadow-lg shrink-0 bg-white flex flex-col items-center justify-center">
-              <div className="text-center space-y-6 px-8">
-                <div className="text-6xl">😕</div>
-                <h2 className="text-3xl font-bold text-gray-900">
-                  Không tìm thấy portfolio
-                </h2>
-                <p className="text-gray-600 text-lg">
-                  Không có portfolio phù hợp với tiêu chí tìm kiếm của bạn. Vui
-                  lòng thử lại với các tiêu chí khác.
-                </p>
-                <button
-                  onClick={handleClearSearch}
-                  className="mt-8 px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors"
-                >
-                  Quay lại danh sách gốc
-                </button>
+            isLoading ? (
+              <div className="relative w-full max-w-3xl min-h-128 rounded-2xl overflow-hidden shadow-lg shrink-0 bg-white flex flex-col items-center justify-center">
+                <div className="text-center space-y-6">
+                  <div className="flex justify-center">
+                    <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                  </div>
+                  <p className="text-gray-600">Đang tải portfolio...</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="relative w-full max-w-3xl min-h-128 rounded-2xl overflow-hidden shadow-lg shrink-0 bg-white flex flex-col items-center justify-center">
+                <div className="text-center space-y-6 px-8">
+                  <div className="text-6xl">😕</div>
+                  <h2 className="text-3xl font-bold text-gray-900">
+                    Không tìm thấy portfolio
+                  </h2>
+                  <p className="text-gray-600 text-lg">
+                    Không có portfolio phù hợp với tiêu chí tìm kiếm của bạn. Vui
+                    lòng thử lại với các tiêu chí khác.
+                  </p>
+                  <button
+                    onClick={handleClearSearch}
+                    className="mt-8 px-8 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Quay lại danh sách gốc
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <>
               <div className="w-full max-w-3xl min-w-0 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

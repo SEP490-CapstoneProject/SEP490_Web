@@ -1085,3 +1085,133 @@ export const searchCompanyPosts = async (
     throw new Error("Network error. Please check your internet connection.");
   }
 };
+
+/**
+ * Report a company job post
+ * @param postId - The ID of the company post to report
+ * @param reportData - Report data containing reason and description
+ * @param accessToken - Optional access token for authenticated requests
+ */
+export const reportCompanyPost = async (
+  postId: number,
+  reportData: {
+    reason: string;
+    description: string;
+  },
+  accessToken?: string
+): Promise<{
+  id: number;
+  companyPostId: number;
+  postOwnerUserId: number;
+  reporterUserId: number;
+  reason: string;
+  description: string;
+  status: string;
+  reviewedByUserId: number | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}> => {
+  try {
+    console.log("📡 [reportCompanyPost] Starting for postId:", postId);
+    console.log("📡 [reportCompanyPost] accessToken provided:", !!accessToken);
+
+    if (!accessToken) {
+      console.warn("⚠️ [reportCompanyPost] No accessToken provided - API may reject request");
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("⏱️ Report post timeout after 30 seconds");
+      controller.abort();
+    }, 30000);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+      console.log("📡 [reportCompanyPost] Authorization header added");
+    }
+
+    const fullUrl = buildApiUrl(API_BASE_URLS.company, `/company-posts/${postId}/report`);
+    console.log("📡 [reportCompanyPost] Making POST request to:", fullUrl);
+    console.log("📡 [reportCompanyPost] Headers:", { "Content-Type": headers["Content-Type"], hasAuth: !!headers["Authorization"] });
+
+    const response = await fetch(fullUrl, {
+      method: "POST",
+      headers: headers,
+      body: JSON.stringify(reportData),
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log("📡 [reportCompanyPost] Response status:", response.status);
+    console.log("📡 [reportCompanyPost] Response statusText:", response.statusText);
+    console.log("📡 [reportCompanyPost] Response OK:", response.ok);
+
+    const contentType = response.headers.get("content-type");
+    console.log("📡 [reportCompanyPost] Content-Type:", contentType);
+
+    let data: unknown;
+    let responseText: string = "";
+
+    // Try to read response body first
+    try {
+      responseText = await response.text();
+      console.log("📦 Raw response (first 500 chars):", responseText.substring(0, 500));
+    } catch (readError) {
+      console.error("❌ Error reading response body:", readError);
+      throw new Error("Failed to read server response");
+    }
+
+    // Check response status first
+    if (!response.ok) {
+      console.error("❌ [reportCompanyPost] API returned error status:", response.status);
+      if (contentType?.includes("application/json") && responseText) {
+        try {
+          const errorData = JSON.parse(responseText);
+          throw new Error(errorData.message || `HTTP ${response.status}`);
+        } catch (e) {
+          if (e instanceof Error) throw e;
+          throw new Error(`HTTP ${response.status}`);
+        }
+      }
+      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+    }
+
+    // Parse successful response
+    if (contentType?.includes("application/json") && responseText) {
+      try {
+        data = JSON.parse(responseText);
+        console.log("📡 [reportCompanyPost] Parsed response data:", data);
+      } catch (parseError) {
+        console.error("❌ [reportCompanyPost] JSON parse error:", parseError);
+        throw new Error("Invalid response format from server (JSON parse failed)");
+      }
+    } else if (responseText && responseText.trim().length > 0) {
+      console.warn("⚠️ Response has body but not JSON, treating as error");
+      throw new Error("Server returned non-JSON response");
+    } else {
+      console.warn("⚠️ Response has empty body");
+      throw new Error("Empty response from server");
+    }
+
+    console.log("✅ [reportCompanyPost] Post reported successfully");
+    return data as Awaited<ReturnType<typeof reportCompanyPost>>;
+  } catch (error) {
+    console.error("❌ [reportCompanyPost] Caught error:", error);
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      console.error("❌ CORS Error or Network Error:", error);
+      throw new Error("Cannot connect to server. Please check your internet connection.");
+    }
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Network error while reporting post");
+  }
+};
