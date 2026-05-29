@@ -1,3 +1,5 @@
+import { PortfolioBlock } from "@/services/portfolio.api";
+
 export interface CompanyPost {
   postId: number;
   companyId: number;
@@ -102,4 +104,36 @@ export interface SearchCompanyPostsParams {
   type?: string; // Full-time or Part-time
   page?: number;
   pageSize?: number;
+}
+
+
+
+/**
+ * Portfolio Match item from /api/company-posts/{id}/match-portfolios endpoint
+ */
+export interface PortfolioMatch {
+  portfolioId: number;
+  title: string;
+  cosine: number;
+  skillScore: number;
+  categoryScore: number;
+  finalScore: number;
+  employeeId: number;
+  isMain: boolean;
+  isPublic: boolean;
+  status: string;
+  moderationStatus: string;
+  createdAt: string;
+  updatedAt: string;
+  blocks: PortfolioBlock[];
+}
+
+/**
+ * Matched Portfolios response from /api/company-posts/{id}/match-portfolios endpoint
+ */
+export interface MatchedPortfoliosResponse {
+  items: PortfolioMatch[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

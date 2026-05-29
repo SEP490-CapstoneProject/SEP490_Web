@@ -1,4 +1,4 @@
-import { CompanyPostsPaginatedResponse, CompanyPostDetail, SearchCompanyPostsResponse, SearchCompanyPostsParams } from '@/types/companyPost';
+import { CompanyPostsPaginatedResponse, CompanyPostDetail, SearchCompanyPostsResponse, SearchCompanyPostsParams, MatchedPortfoliosResponse } from '@/types/companyPost';
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from '@/config/apiConfig';
 
 /**
@@ -1213,5 +1213,131 @@ export const reportCompanyPost = async (
       throw error;
     }
     throw new Error("Network error while reporting post");
+  }
+};
+
+/**
+ * Fetch matched portfolios for a company job post
+ * Returns portfolios that match the job requirements based on skills, categories, etc.
+ * @param postId - The ID of the company post
+ * @param page - Page number for pagination (default: 1)
+ * @param pageSize - Number of results per page (default: 20)
+ * @param accessToken - Optional access token for authenticated requests
+ */
+export const fetchMatchedPortfolios = async (
+  postId: number,
+  page: number = 1,
+  pageSize: number = 20,
+  accessToken?: string
+): Promise<MatchedPortfoliosResponse> => {
+  try {
+    console.log("📡 [fetchMatchedPortfolios] Starting for postId:", postId, "page:", page, "pageSize:", pageSize);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("⏱️ Fetch matched portfolios timeout after 30 seconds");
+      controller.abort();
+    }, 30000);
+
+    // Build query parameters
+    const params = new URLSearchParams();
+    params.append("page", page.toString());
+    params.append("pageSize", pageSize.toString());
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+
+    // Add authorization header if token is provided
+    if (accessToken) {
+      headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+
+    const fullUrl = buildApiUrl(API_BASE_URLS.company, `/company-posts/${postId}/match-portfolios`) + `?${params.toString()}`;
+    console.log("📡 Making request to:", fullUrl);
+
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: headers,
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log("📡 Matched portfolios API response status:", response.status);
+    console.log("📡 Response content-type:", response.headers.get("content-type"));
+
+    const contentType = response.headers.get("content-type");
+    let data: unknown;
+    let responseText: string = "";
+
+    // Try to read response body first
+    try {
+      responseText = await response.text();
+      console.log("📦 Raw response (first 500 chars):", responseText.substring(0, 500));
+    } catch (readError) {
+      console.error("❌ Error reading response body:", readError);
+      throw new Error("Failed to read server response");
+    }
+
+    // Check response status first
+    if (!response.ok) {
+      console.error("❌ API returned error status:", response.status);
+      // Try to parse error message from response body
+      if (contentType?.includes("application/json") && responseText) {
+        try {
+          const errorData = JSON.parse(responseText);
+          throw new Error(errorData.message || `HTTP ${response.status}`);
+        } catch (e) {
+          if (e instanceof Error) throw e;
+          throw new Error(`HTTP ${response.status}`);
+        }
+      }
+      throw new Error(`Server error: ${response.status} ${response.statusText}`);
+    }
+
+    // Parse successful response
+    if (contentType?.includes("application/json") && responseText) {
+      try {
+        data = JSON.parse(responseText);
+        console.log("📦 Matched portfolios response data:", data);
+      } catch (parseError) {
+        console.error("❌ JSON parse error:", parseError);
+        throw new Error("Invalid response format from server (JSON parse failed)");
+      }
+    } else if (responseText && responseText.trim().length > 0) {
+      console.warn("⚠️ Response has body but not JSON, treating as error");
+      throw new Error("Server returned non-JSON response");
+    } else {
+      console.warn("⚠️ Response has empty body");
+      throw new Error("Empty response from server");
+    }
+
+    // Validate response structure - should have items, total, page, pageSize
+    if (
+      !data ||
+      typeof data !== "object" ||
+      !Array.isArray((data as Record<string, unknown>).items)
+    ) {
+      console.error("❌ Invalid response format:", data);
+      throw new Error("Invalid response format from server");
+    }
+
+    console.log(
+      "✅ Matched portfolios fetched successfully:",
+      ((data as Record<string, unknown>).items as unknown[])?.length || 0,
+      "portfolios"
+    );
+    return data as MatchedPortfoliosResponse;
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      console.error("❌ CORS Error or Network Error:", error);
+      throw new Error("Cannot connect to server. Please check your internet connection.");
+    }
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Network error. Please check your internet connection.");
   }
 };
