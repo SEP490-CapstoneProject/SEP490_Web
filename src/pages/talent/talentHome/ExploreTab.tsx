@@ -69,6 +69,7 @@ export default function ExploreTab() {
     [],
   );
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const currentPortfolio = filteredPortfolios[currentIndex];
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
@@ -89,6 +90,7 @@ export default function ExploreTab() {
 
   const loadPortfolios = async () => {
     try {
+      setIsLoading(true);
       const topResponse = await portfolioService.fetchAllPortfolios(1, 1, "0");
       if (topResponse && topResponse.items && topResponse.items.length > 0) {
         setTopPortfolios([topResponse.items[0]]);
@@ -97,6 +99,7 @@ export default function ExploreTab() {
       const response = await portfolioService.fetchAllPortfolios(1, 10000, "2");
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
+        setIsLoading(false);
         return;
       }
 
@@ -105,7 +108,9 @@ export default function ExploreTab() {
       setCurrentIndex(0);
     } catch (error) {
       console.error("❌ Error loading portfolios:", error);
-      notify.error("Không thể tải danh sách portfolio.");
+      // Keep loading state active, don't show error - wait for successful load
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -206,7 +211,7 @@ export default function ExploreTab() {
       setCurrentIndex(0);
     } catch (error) {
       console.error("❌ Error searching portfolios:", error);
-      notify.error("Lỗi khi tìm kiếm portfolio.");
+      // Keep current state on search error
     } finally {
       setIsSearching(false);
     }
@@ -311,13 +316,22 @@ export default function ExploreTab() {
           <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden flex flex-col min-h-[750px] transition-all">
             <div className="flex-1 p-8 overflow-y-auto no-scrollbar scroll-smooth">
               {filteredPortfolios.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-[600px] text-slate-400">
-                  <p className="text-6xl mb-6">🔍</p>
-                  <h3 className="text-xl font-bold">Không tìm thấy ứng viên</h3>
-                  <p className="mt-2">
-                    Thử thay đổi bộ lọc để xem nhiều kết quả hơn
-                  </p>
-                </div>
+                isLoading ? (
+                  <div className="flex flex-col items-center justify-center h-[600px]">
+                    <div className="flex justify-center mb-4">
+                      <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                    </div>
+                    <p className="text-slate-400">Đang tải portfolio...</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-[600px] text-slate-400">
+                    <p className="text-6xl mb-6">🔍</p>
+                    <h3 className="text-xl font-bold">Không tìm thấy ứng viên</h3>
+                    <p className="mt-2">
+                      Thử thay đổi bộ lọc để xem nhiều kết quả hơn
+                    </p>
+                  </div>
+                )
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
 
