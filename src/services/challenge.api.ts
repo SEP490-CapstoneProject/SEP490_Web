@@ -8,7 +8,8 @@ import {
   SubmissionsResponse,
   SubmissionDetailResponse,
   MyChallengeSubmissionsResponse,
-  SkillHistory
+  SkillHistory,
+  MyCompletedChallengesResponse,
 } from "@/types/challenge";
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from "@/config/apiConfig";
 
@@ -783,6 +784,62 @@ export const getPortfolioSkillsHistory = async (
     const errorMessage =
       error instanceof Error ? error.message : "Failed to fetch skills history";
     console.error("❌ [getPortfolioSkillsHistory] Error:", errorMessage);
+    throw error;
+  }
+};
+
+/**
+ * Fetch user's completed challenges (submissions)
+ * GET /api/submissions/me/challenges
+ */
+export const fetchMyCompletedChallenges = async (
+  skip: number = 0,
+  take: number = 20,
+  accessToken: string
+): Promise<MyCompletedChallengesResponse> => {   // Bạn có thể tạo type riêng sau
+  try {
+    console.log("📡 [fetchMyCompletedChallenges] Fetching my completed challenges");
+
+    const url = buildApiUrl(
+      API_BASE_URLS.challenge,
+      "/api/submissions/me/challenges"
+    );
+
+    const queryParams = new URLSearchParams({
+      skip: skip.toString(),
+      take: take.toString(),
+    });
+
+    const fullUrl = `${url}?${queryParams}`;
+    console.log("🔗 [fetchMyCompletedChallenges] Full URL:", fullUrl);
+
+    const response = await fetch(fullUrl, {
+      method: "GET",
+      headers: getAuthHeader(accessToken),
+    });
+
+    console.log(
+      "📊 [fetchMyCompletedChallenges] Response status:",
+      response.status
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(
+        error.message || `Failed to fetch completed challenges: ${response.statusText}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("✅ [fetchMyCompletedChallenges] Success:", {
+      total: data.totalCount,
+      items: data.items?.length || 0,
+    });
+    return data;
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Failed to fetch my completed challenges";
+    console.error("❌ [fetchMyCompletedChallenges] Error:", errorMessage);
     throw error;
   }
 };
