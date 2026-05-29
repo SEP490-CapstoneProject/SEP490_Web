@@ -6,7 +6,7 @@ import TestImage from "@/assets/testImage/testImage.png";
 import MapIcon from "@/assets/myWeb/map.png";
 import MoneyIcon from "@/assets/myWeb/money.png";
 import SortIcon from "@/assets/myWeb/sort.png";
-import { Search, Loader2, Bookmark, ChevronDown } from "lucide-react";
+import { Search, Loader2, Bookmark, ChevronDown, Sparkles, X } from "lucide-react";
 
 import { useAppSelector, useAppDispatch } from "@/store/hook";
 import {
@@ -14,6 +14,7 @@ import {
   initializeSavedPosts,
 } from "@/store/features/savedPosts/savedPostsSlice";
 import { fetchCompanyPosts, saveCompanyPost, searchCompanyPosts } from "@/services/company.api";
+import { fetchMyPortfolios, fetchMatchedJobs, PostMatch, PortfolioMainBlockItem } from "@/services/portfolio.api";
 import { CompanyPostAPI, CompanyPost, SearchCompanyPostsParams } from "@/types/companyPost";
 import { notify } from "@/lib/toast";
 
@@ -33,6 +34,14 @@ export default function RecruitTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [savingPostIds, setSavingPostIds] = useState<Set<number>>(new Set());
+
+  // AI Search States
+  const [isAISearchEnabled, setIsAISearchEnabled] = useState(false);
+  const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [userPortfolios, setUserPortfolios] = useState<PortfolioMainBlockItem[]>([]);
+  const [isLoadingPortfolios, setIsLoadingPortfolios] = useState(false);
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
+  const [isLoadingMatches, setIsLoadingMatches] = useState(false);
 
   const accessToken = useAppSelector((state) => state.auth.accessToken);
   const savedPostIds = useAppSelector((state) => state.savedPosts.savedPostIds);
@@ -102,6 +111,80 @@ export default function RecruitTab() {
   const handleResetFilters = () => {
     setFilters({ position: "", location: "", salary: "", type: "" });
     setFilteredPosts(allPosts);
+  };
+
+  // AI Search Handler: Load user portfolios when modal opens
+  const handleOpenPortfolioModal = async () => {
+    setShowPortfolioModal(true);
+    if (userPortfolios.length === 0 && !isLoadingPortfolios) {
+      setIsLoadingPortfolios(true);
+      try {
+        const portfolios = await fetchMyPortfolios(accessToken || "");
+        setUserPortfolios(portfolios);
+      } catch (error) {
+        console.error("Lỗi khi tải portfolio:", error);
+        notify.error("Không thể tải danh sách portfolio");
+      } finally {
+        setIsLoadingPortfolios(false);
+      }
+    }
+  };
+
+  // AI Search Handler: Select portfolio and fetch matched jobs
+  const handleSelectPortfolio = async (portfolioId: number) => {
+    setSelectedPortfolioId(portfolioId);
+    setShowPortfolioModal(false);
+    setIsLoadingMatches(true);
+    setIsAISearchEnabled(true);
+
+    try {
+      const response = await fetchMatchedJobs(portfolioId, accessToken || "", 1, 20);
+      if (response.item && response.item.length > 0) {
+        // Convert PostMatch[] to CompanyPostAPI[] for display
+        const matchedPosts = response.item.map((item: PostMatch) => ({
+          postId: item.postId,
+          position: item.title,
+          companyName: item.companyName,
+          companyAvatar: item.companyAvatar,
+          mediaUrl: item.mediaUrl || item.coverImageUrl,
+          address: item.address,
+          salary: item.salary,
+        })) as CompanyPostAPI[];
+        setFilteredPosts(matchedPosts);
+        notify.success(`Tìm thấy ${response.item.length} công việc phù hợp`);
+      } else {
+        setFilteredPosts([]);
+        notify.info("Không tìm thấy công việc phù hợp");
+      }
+    } catch (error) {
+      console.error("Lỗi khi tìm kiếm công việc:", error);
+      notify.error("Không thể tìm kiếm công việc phù hợp");
+      setIsAISearchEnabled(false);
+    } finally {
+      setIsLoadingMatches(false);
+    }
+  };
+
+  // Disable AI Search and return to normal
+  const handleDisableAISearch = () => {
+    setIsAISearchEnabled(false);
+    setSelectedPortfolioId(null);
+    setFilteredPosts(allPosts);
+  };
+
+  // Extract portfolio position from INTRO block
+  const getPortfolioPosition = (portfolio: PortfolioMainBlockItem): string => {
+    const introBlock = portfolio.blocks;
+    if (introBlock && introBlock.data) {
+      return (
+        introBlock.data.studyField ||
+        introBlock.data.department ||
+        introBlock.data.title ||
+        introBlock.data.position ||
+        "Không xác định"
+      );
+    }
+    return "Không xác định";
   };
 
   const handleSave = async (postId: number) => {
@@ -225,7 +308,33 @@ export default function RecruitTab() {
               )}
             </button>
 
-            {hasActiveFilters && (
+            {/* AI Search Button */}
+            <button
+              onClick={handleOpenPortfolioModal}
+              disabled={isLoadingMatches || !accessToken}
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              {isLoadingMatches ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" /> Đang tìm kiếm...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} /> AI Search
+                </>
+              )}
+            </button>
+
+            {isAISearchEnabled && selectedPortfolioId && (
+              <button
+                onClick={handleDisableAISearch}
+                className="w-full text-sm text-purple-600 hover:text-purple-700 py-2 transition-colors"
+              >
+                ✕ Tắt AI Search
+              </button>
+            )}
+
+            {hasActiveFilters && !isAISearchEnabled && (
               <button
                 onClick={handleResetFilters}
                 className="w-full text-sm text-gray-400 hover:text-gray-600 py-1 transition-colors"
@@ -326,6 +435,57 @@ export default function RecruitTab() {
           </div>
         )}
       </main>
+
+      {/* Portfolio Selection Modal */}
+      {showPortfolioModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-2xl p-6 w-96 max-h-96 overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-purple-500" />
+                <h3 className="text-xl font-bold text-gray-900">Chọn Portfolio</h3>
+              </div>
+              <button
+                onClick={() => setShowPortfolioModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-4">
+              Chọn một portfolio để tìm kiếm công việc phù hợp
+            </p>
+
+            {isLoadingPortfolios ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-purple-500" />
+              </div>
+            ) : userPortfolios.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Bạn chưa có portfolio nào</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {userPortfolios.map((portfolio) => (
+                  <button
+                    key={portfolio.portfolioId}
+                    onClick={() => handleSelectPortfolio(portfolio.portfolioId)}
+                    className="w-full text-left p-3 rounded-lg border border-gray-200 hover:border-purple-400 hover:bg-purple-50 transition-all"
+                  >
+                    <p className="font-semibold text-gray-900">
+                      {portfolio.portfolio.name}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {getPortfolioPosition(portfolio)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

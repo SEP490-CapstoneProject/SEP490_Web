@@ -212,6 +212,38 @@ export type PortfolioPreviewResponse = {
   data: PortfolioPreview;
 };
 
+export type PostMatch = {
+  postId: number;
+  title: string;
+  consine: number;
+  skillScore?: number;
+  categoryScore?: number;
+  finalScore: number;
+  companyName: string;
+  companyAvatar: string;
+  coverImageUrl: string | null;
+  mediaType: string;
+  mediaUrl: string;
+  address: string;
+  salary: string;
+  jobDescription: string;
+  requirementMandatory: string;
+  requirementPreferred: string;
+  benefits: string;
+  status: number;
+  createdAt: string;
+  isSaved: boolean;
+  reviewStatus: string | null;
+  reviewReason: string | null;
+}
+
+export type PostMatchResponse = {
+  item: PostMatch[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export const PORTFOLIO_MOCK: PortfolioResponse[] = [
   {
     portfolioId: 12,
@@ -3530,6 +3562,166 @@ export const fetchSavedPortfolios = async (
       );
     }
     if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error("Network error. Please check your connection");
+  }
+};
+
+// Fetch matched jobs for a portfolio
+export const fetchMatchedJobs = async (
+  portfolioId: number,
+  accessToken: string,
+  page: number = 1,
+  pageSize: number = 10,
+): Promise<PostMatchResponse> => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_PORTFOLIO_API_BASE_URL || API_BASE_URLS.portfolio;
+
+    console.log("📡 [fetchMatchedJobs] Fetching matched jobs for portfolio:", portfolioId);
+    console.log("📍 API Base URL:", API_BASE_URL);
+    console.log("🔐 Token available:", !!accessToken);
+
+    if (!accessToken) {
+      console.error("❌ No access token provided!");
+      throw new Error("Access token is missing. Please login again.");
+    }
+
+    if (!portfolioId || portfolioId <= 0) {
+      console.error("❌ Invalid portfolio ID:", portfolioId);
+      throw new Error("Invalid portfolio ID provided.");
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.warn("⏱️ Fetch matched jobs timeout after 30 seconds");
+      controller.abort();
+    }, 30000);
+
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    };
+
+    // Build URL with pagination parameters
+    const url = `${API_BASE_URL}/portfolio/${portfolioId}/match-jobs?page=${page}&pageSize=${pageSize}`;
+    console.log("📡 [fetchMatchedJobs] Full URL:", url);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: headers,
+      signal: controller.signal,
+      credentials: "include",
+    });
+
+    clearTimeout(timeoutId);
+
+    console.log("📡 [fetchMatchedJobs] Response status:", response.status);
+
+    const contentType = response.headers.get("content-type");
+    let data: any;
+    let responseText: string = "";
+
+    try {
+      responseText = await response.text();
+      console.log("📦 [fetchMatchedJobs] Raw response:", responseText.substring(0, 500));
+    } catch (readError) {
+      console.error("❌ Error reading response body:", readError);
+      throw new Error("Failed to read server response");
+    }
+
+    // Handle 401 Unauthorized
+    if (response.status === 401) {
+      console.error("❌ 401 Unauthorized - Token is invalid or expired");
+      throw new Error("Your session has expired. Please login again.");
+    }
+
+    if (contentType?.includes("application/json") && responseText) {
+      try {
+        data = JSON.parse(responseText);
+        console.log("📦 [fetchMatchedJobs] Response data:", data);
+      } catch (parseError) {
+        console.error("❌ JSON parse error:", parseError);
+        throw new Error("Invalid response format from server");
+      }
+    }
+
+    if (!response.ok) {
+      const errorMsg =
+        data?.message ||
+        data?.errors?.[0] ||
+        `Server error: ${response.status} ${response.statusText}`;
+      console.error("❌ Fetch matched jobs error:", errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    // Normalize the response
+    let matchedJobs: PostMatch[] = [];
+    let paginationInfo = {
+      item: [] as PostMatch[],
+      total: 0,
+      page: page,
+      pageSize: pageSize,
+    };
+
+    if (Array.isArray(data)) {
+      // Format: [ {...}, {...}, ... ]
+      console.log("✅ Format: Direct array");
+      matchedJobs = data;
+      paginationInfo.total = data.length;
+    } else if (data && Array.isArray(data.item)) {
+      // Format: { item: [...], total: ..., page: ... }
+      console.log("✅ Format: { item: [...], total, page, ... }");
+      matchedJobs = data.item;
+      paginationInfo = {
+        item: matchedJobs,
+        total: data.total || matchedJobs.length,
+        page: data.page || page,
+        pageSize: data.pageSize || pageSize,
+      };
+    } else if (data && Array.isArray(data.items)) {
+      // Format: { items: [...], total: ..., page: ... }
+      console.log("✅ Format: { items: [...], total, page, ... }");
+      matchedJobs = data.items;
+      paginationInfo = {
+        item: matchedJobs,
+        total: data.total || matchedJobs.length,
+        page: data.page || page,
+        pageSize: data.pageSize || pageSize,
+      };
+    } else if (data && data.data && Array.isArray(data.data)) {
+      // Format: { data: [...] }
+      console.log("✅ Format: { data: [...] }");
+      matchedJobs = data.data;
+      paginationInfo = {
+        item: matchedJobs,
+        total: data.total || matchedJobs.length,
+        page: data.page || page,
+        pageSize: data.pageSize || pageSize,
+      };
+    } else {
+      console.warn("⚠️ Unexpected response format for fetchMatchedJobs");
+      console.warn("⚠️ data:", data);
+      console.warn("⚠️ data keys:", data ? Object.keys(data) : "null");
+      return {
+        item: [],
+        total: 0,
+        page: page,
+        pageSize: pageSize,
+      };
+    }
+
+    console.log("✅ Fetched", matchedJobs.length, "matched jobs from page", paginationInfo.page);
+    return paginationInfo;
+  } catch (error) {
+    if (error instanceof TypeError && error.message === "Failed to fetch") {
+      console.error("❌ [fetchMatchedJobs] CORS Error or Network Error:", error);
+      throw new Error(
+        "Cannot connect to server. Please check your internet connection.",
+      );
+    }
+    if (error instanceof Error) {
+      console.error("❌ [fetchMatchedJobs] Error:", error.message);
       throw error;
     }
     throw new Error("Network error. Please check your connection");
