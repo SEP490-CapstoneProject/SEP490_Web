@@ -2,6 +2,8 @@ import { useState } from "react";
 import SystemNotification from "./SystemNotification";
 import CommunityNotification from "./CommunityNotification";
 import { PremiumInNotification } from "@/components/common/Premium";
+import { useAppSelector } from "@/store/hook";
+import { useUserProfile } from "@/hook/useUserProfile";
 
 // --- Types ---
 type TabType = "system" | "community";
@@ -31,7 +33,7 @@ const TabButton = ({
 // --- Main Page Component ---
 export default function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<TabType>("system");
-
+  const profile = useUserProfile();
   return (
     <div className="min-h-screen transition-colors duration-300">
       {/* Header Section */}
@@ -81,7 +83,9 @@ export default function NotificationsPage() {
               )}
             </div>
           </div>
-          <PremiumInNotification />
+          {!(profile?.profile?.planName === "Premium" || profile?.profile?.planName === "Pro") && (
+            <PremiumInNotification />
+          )}
 
           {/* Right Column: Premium Sidebar */}
         </div>

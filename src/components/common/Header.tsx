@@ -49,6 +49,7 @@ export function Header() {
       label: "Gói dịch vụ",
       href: "/subscription",
       requireAuth: true,
+      hideWithCompany: true, 
     },
     { icon: Users, label: "Cộng đồng", href: "/community", requireAuth: true },
     {
@@ -75,6 +76,7 @@ export function Header() {
     if (isLoggedIn) {
       // Nếu đã login: Ẩn các tab có hideOnLogin, hiện các tab còn lại (alwaysShow hoặc requireAuth)
       if (item.hideOnLogin) return false;
+      if (item.hideWithCompany && user?.role === 2) return false; // Ẩn tab nếu là doanh nghiệp
       return true;
     }
     // Nếu chưa login: Chỉ hiện các tab KHÔNG yêu cầu auth (Giới thiệu & Gói cước)

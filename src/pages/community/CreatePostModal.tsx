@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, Image as ImageIcon, Plus } from "lucide-react";
+import { X, Image as ImageIcon, Plus, Crown, Zap } from "lucide-react";
 import { useUserProfile } from "@/hook/useUserProfile";
 import { useAppSelector } from "@/store/hook";
 import { notify } from "@/lib/toast";
@@ -20,7 +20,7 @@ const CreatePostModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { profile } = useUserProfile();
-  const { accessToken } = useAppSelector((state) => state.auth);
+  const { accessToken, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (isOpen) {
@@ -72,13 +72,16 @@ const CreatePostModal = ({
       });
 
       // 3. Gọi API
-      const response = await fetch("https://community-service.redmushroom-1d023c6a.southeastasia.azurecontainerapps.io/api/community/posts", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
+      const response = await fetch(
+        "https://community-service.redmushroom-1d023c6a.southeastasia.azurecontainerapps.io/api/community/posts",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData, // Trình duyệt tự set Content-Type: multipart/form-data kèm boundary
         },
-        body: formData, // Trình duyệt tự set Content-Type: multipart/form-data kèm boundary
-      });
+      );
 
       if (response.ok) {
         const result = await response.json();
@@ -122,18 +125,58 @@ const CreatePostModal = ({
         {/* Content Body */}
         <div className="p-4 overflow-y-auto flex-1 custom-scrollbar">
           <div className="flex items-center gap-3 mb-4">
-            <img
-              src={profile?.avatar || "/user_placeholder.png"}
-              className="w-11 h-11 rounded-full object-cover"
-              alt="Avatar"
-            />
+            {/* Khối Avatar bọc hiệu ứng Vương miện / Huy hiệu */}
+            <div className="relative inline-block group">
+              {/* 1. Vương miện / Huy hiệu đội nghiêng */}
+              {profile?.planName && profile.planName !== "Free" && (
+                <div
+                  className={`absolute z-10 transition-all duration-300 -top-1.5 -right-2 rotate-[35deg] group-hover:rotate-[25deg] group-hover:scale-110`}
+                >
+                  {profile.planName === "Premium" ? (
+                    <div className="bg-yellow-400 text-white p-0.5 rounded-md shadow-[0_4px_12px_rgba(234,179,8,0.5)] border-[1.5px] border-white">
+                      <Crown size={14} fill="currentColor" strokeWidth={2.5} />
+                    </div>
+                  ) : (
+                    <div className="bg-blue-600 text-white p-0.5 rounded-md shadow-[0_4px_12px_rgba(37,99,235,0.5)] border-[1.5px] border-white">
+                      <Zap size={14} fill="currentColor" strokeWidth={2.5} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 2. Ảnh Avatar gốc (Đã thay đổi w-11 h-11 thành w-12 h-12 như code mẫu của bạn để khớp vương miện) */}
+              <img
+                src={profile?.avatar || "/user_placeholder.png"}
+                className={`w-12 h-12 rounded-full border-2 object-cover transition-all duration-300 ${
+                  profile?.planName === "Premium"
+                    ? "border-yellow-400"
+                    : profile?.planName === "Pro"
+                      ? "border-blue-500"
+                      : "border-gray-100"
+                }`}
+                alt="Avatar"
+              />
+
+              {/* 3. Tick xanh cho doanh nghiệp */}
+              {user?.role === 2 && (
+                <div className="absolute -bottom-0.5 -right-0.5 transform z-20">
+                  <img
+                    src="/blue-tick-company.png"
+                    alt="Verified"
+                    className="w-4 h-4 bg-white rounded-full border border-white shadow-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Khối hiển thị tên bên cạnh */}
             <div>
               <p className="font-bold text-gray-900 text-sm">
                 {profile?.displayName || "Người dùng"}
               </p>
               {/* <span className="text-[10px] text-gray-500 font-medium">
-                CÔNG KHAI
-              </span> */}
+      CÔNG KHAI
+    </span> */}
             </div>
           </div>
 
