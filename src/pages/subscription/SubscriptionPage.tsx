@@ -6,10 +6,10 @@ import PlanCard from "./PlanCard";
 import { useAppSelector } from "@/store/hook";
 
 const SubscriptionPage = () => {
-  // Type safe cho state plans
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-    const { user } = useAppSelector((state) => state.auth);
+  const { user } = useAppSelector((state) => state.auth);
+
   const fetchPlans = async () => {
     try {
       const res = await fetch(
@@ -18,8 +18,11 @@ const SubscriptionPage = () => {
       if (res.ok) {
         const data: SubscriptionPlan[] = await res.json();
 
-        // Nhân price với 1000 cho từng gói cước
-        const adjustedPlans = data.map((plan) => ({
+        // Lọc bỏ gói Pro trực tiếp từ API trả về (nếu backend vẫn trả về Pro)
+        const filteredData = data.filter((plan) => plan.name !== "Pro");
+
+        // Nhân price với 1000 cho từng gói cước còn lại
+        const adjustedPlans = filteredData.map((plan) => ({
           ...plan,
           price: plan.price * 1000,
         }));
@@ -32,6 +35,7 @@ const SubscriptionPage = () => {
       setLoading(false);
     }
   };
+
   useEffect(() => {
     fetchPlans();
   }, []);
@@ -46,9 +50,11 @@ const SubscriptionPage = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto pt-10 px-4">
-      {/* Thay md:grid-cols-2 thành md:grid-cols-3 và thêm items-stretch */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+    <div className="max-w-7xl mx-auto pt-16 px-4 flex flex-col items-center">
+      {/* - Đổi từ md:grid-cols-3 về md:grid-cols-2 cho 2 gói
+        - Thêm max-w-4xl và mx-auto để giới hạn khung hình vừa vặn cho 2 cột trên desktop
+      */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch w-full max-w-4xl mx-auto justify-center">
         {plans.map((plan) => (
           <PlanCard key={plan.id} plan={plan} />
         ))}
@@ -56,4 +62,5 @@ const SubscriptionPage = () => {
     </div>
   );
 };
+
 export default SubscriptionPage;
