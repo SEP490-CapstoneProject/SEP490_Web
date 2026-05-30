@@ -5,13 +5,12 @@ import { getPortfolioSkillsHistory } from "@/services/challenge.api";
 import { SkillHistory } from "@/types/challenge";
 import { SkillsHistoryModal } from "@/components/portfolio/SkillsHistoryModal";
 import { fetchEmployeeByUserId } from "@/services/profile.api";
-import { ChevronLeft, ChevronRight, Trophy, BarChart2, Eye, EyeOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, Trophy, BarChart2 } from "lucide-react";
 import SortIcon from "@/assets/myWeb/sort.png";
 import ShareIcon from "@/assets/myWeb/share1.png";
 import {
   portfolioService,
   PortfolioMainBlockItem,
-  PortfolioPreview,
 } from "@/services/portfolio.api";
 import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
 import { notify } from "@/lib/toast";
@@ -76,14 +75,6 @@ export default function ExploreTab() {
   const [skillHistory, setSkillHistory] = useState<SkillHistory[]>([]);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
 
-  // --- Preview states ---
-  // undefined = chưa fetch / đang fetch, null = đã fetch nhưng không có preview, PortfolioPreview = có preview
-  const [currentPreview, setCurrentPreview] = useState<
-    PortfolioPreview | null | undefined
-  >(undefined);
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
-  const [showPreview, setShowPreview] = useState(true);
-
   // ----------------------------------------------------------------
   // Data loading
   // ----------------------------------------------------------------
@@ -108,42 +99,14 @@ export default function ExploreTab() {
       setCurrentIndex(0);
     } catch (error) {
       console.error("❌ Error loading portfolios:", error);
-      // Keep loading state active, don't show error - wait for successful load
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const fetchCurrentPreview = async (portfolio: PortfolioMainBlockItem) => {
-    if (!accessToken) return;
-
-    setIsLoadingPreview(true);
-    setCurrentPreview(undefined);
-    setShowPreview(true); // reset về hiển thị preview mỗi khi đổi portfolio
-
-    try {
-      const preview = await portfolioService.fetchPortfolioPreview(
-        portfolio.portfolioId,
-        accessToken,
-      );
-      setCurrentPreview(preview ?? null);
-    } catch {
-      setCurrentPreview(null);
-    } finally {
-      setIsLoadingPreview(false);
     }
   };
 
   useEffect(() => {
     loadPortfolios();
   }, []);
-
-  // Fetch preview mỗi khi portfolio hiện tại thay đổi
-  useEffect(() => {
-    if (currentPortfolio) {
-      fetchCurrentPreview(currentPortfolio);
-    }
-  }, [currentPortfolio?.portfolioId]);
 
   // ----------------------------------------------------------------
   // Handlers
@@ -211,7 +174,6 @@ export default function ExploreTab() {
       setCurrentIndex(0);
     } catch (error) {
       console.error("❌ Error searching portfolios:", error);
-      // Keep current state on search error
     } finally {
       setIsSearching(false);
     }
@@ -237,16 +199,6 @@ export default function ExploreTab() {
     setFilteredPortfolios(allPortfolios);
     setCurrentIndex(0);
   };
-
-  // ----------------------------------------------------------------
-  // Render helpers
-  // ----------------------------------------------------------------
-
-  // Điều kiện hiển thị ảnh preview
-  const hasPreviewImage = !!currentPreview?.imageUrl;
-  const shouldShowPreviewImage = !isLoadingPreview && hasPreviewImage && showPreview;
-  // Điều kiện hiển thị portfolio renderer
-  const shouldShowPortfolio = !isLoadingPreview && (!hasPreviewImage || !showPreview);
 
   // ----------------------------------------------------------------
   // JSX
@@ -334,58 +286,15 @@ export default function ExploreTab() {
                 )
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-
-                  {/* ── Preview image skeleton khi đang tải ── */}
-                  {isLoadingPreview && (
-                    <div className="w-full h-56 bg-slate-100 rounded-2xl animate-pulse mb-6" />
-                  )}
-
-                  {/* ── Hiển thị ảnh preview (khi có và chưa ẩn) ── */}
-                  {shouldShowPreviewImage && (
-                    <div className="mb-6">
-                      <div className="w-full rounded-2xl overflow-hidden bg-slate-100 mb-3 ring-1 ring-slate-200">
-                        <img
-                          src={currentPreview!.imageUrl}
-                          alt="Bản xem trước portfolio"
-                          className="w-full h-auto object-contain"
-                        />
-                      </div>
-                      <div className="flex justify-center">
-                        <button
-                          onClick={() => setShowPreview(false)}
-                          className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all active:scale-95"
-                        >
-                          <EyeOff size={15} />
-                          Ẩn bản xem trước
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* ── Nút hiện lại preview (khi đã ẩn và có preview) ── */}
-                  {!isLoadingPreview && hasPreviewImage && !showPreview && (
-                    <div className="flex justify-center mb-5">
-                      <button
-                        onClick={() => setShowPreview(true)}
-                        className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-all active:scale-95"
-                      >
-                        <Eye size={15} />
-                        Xem bản xem trước
-                      </button>
-                    </div>
-                  )}
-
-                  {/* ── Portfolio renderer ── */}
-                  {shouldShowPortfolio && (
-                    <PortfolioRenderer
-                      blocks={
-                        Array.isArray(currentPortfolio?.blocks)
-                          ? currentPortfolio.blocks
-                          : [currentPortfolio?.blocks]
-                      }
-                      ranking={currentPortfolio?.ranking}
-                    />
-                  )}
+                  {/* Luôn luôn render trực tiếp PortfolioRenderer */}
+                  <PortfolioRenderer
+                    blocks={
+                      Array.isArray(currentPortfolio?.blocks)
+                        ? currentPortfolio.blocks
+                        : [currentPortfolio?.blocks]
+                    }
+                    ranking={currentPortfolio?.ranking}
+                  />
                 </div>
               )}
             </div>
