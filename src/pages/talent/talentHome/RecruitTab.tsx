@@ -6,7 +6,7 @@ import TestImage from "@/assets/testImage/testImage.png";
 import MapIcon from "@/assets/myWeb/map.png";
 import MoneyIcon from "@/assets/myWeb/money.png";
 import SortIcon from "@/assets/myWeb/sort.png";
-import { Search, Loader2, Bookmark, ChevronDown, Sparkles, X } from "lucide-react";
+import { Search, Loader2, Bookmark, ChevronDown, Sparkles, X, Crown, Zap, Target } from "lucide-react";
 
 import { useAppSelector, useAppDispatch } from "@/store/hook";
 import {
@@ -38,6 +38,7 @@ export default function RecruitTab() {
   // AI Search States
   const [isAISearchEnabled, setIsAISearchEnabled] = useState(false);
   const [showPortfolioModal, setShowPortfolioModal] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [userPortfolios, setUserPortfolios] = useState<PortfolioMainBlockItem[]>([]);
   const [isLoadingPortfolios, setIsLoadingPortfolios] = useState(false);
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(null);
@@ -87,7 +88,6 @@ export default function RecruitTab() {
   const hasActiveFilters = Object.values(filters).some((v) => v !== "");
 
   const handleApplyFilter = async () => {
-    // Nếu không có filter nào, hiện lại toàn bộ
     if (!hasActiveFilters) {
       setFilteredPosts(allPosts);
       return;
@@ -140,7 +140,6 @@ export default function RecruitTab() {
     try {
       const response = await fetchMatchedJobs(portfolioId, accessToken || "", 1, 20);
       if (response.item && response.item.length > 0) {
-        // Convert PostMatch[] to CompanyPostAPI[] for display
         const matchedPosts = response.item.map((item: PostMatch) => ({
           postId: item.postId,
           position: item.title,
@@ -156,10 +155,23 @@ export default function RecruitTab() {
         setFilteredPosts([]);
         notify.info("Không tìm thấy công việc phù hợp");
       }
-    } catch (error) {
-      console.error("Lỗi khi tìm kiếm công việc:", error);
-      notify.error("Không thể tìm kiếm công việc phù hợp");
+    } catch (error: any) {
+      // Detect 403 / premium error
+      const message = error?.message || "";
+      const is403 =
+        error?.status === 403 ||
+        error?.response?.status === 403 ||
+        message.includes("gói hiện tại không được sử dụng AI") ||
+        message.includes("403");
+
+      if (is403) {
+        setShowPremiumModal(true);
+      } else {
+        notify.error("Không thể tìm kiếm công việc phù hợp");
+      }
+
       setIsAISearchEnabled(false);
+      setSelectedPortfolioId(null);
     } finally {
       setIsLoadingMatches(false);
     }
@@ -483,6 +495,93 @@ export default function RecruitTab() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Premium Modal */}
+      {showPremiumModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="relative bg-white rounded-3xl w-[440px] shadow-2xl overflow-hidden">
+            {/* Top gradient banner */}
+            <div className="h-32 bg-gradient-to-br from-purple-600 via-purple-500 to-pink-500 flex items-center justify-center relative">
+              {/* Decorative circles */}
+              <div className="absolute top-[-20px] left-[-20px] w-32 h-32 rounded-full bg-white/10" />
+              <div className="absolute bottom-[-30px] right-[-10px] w-40 h-40 rounded-full bg-white/10" />
+              {/* Crown icon */}
+              <div className="relative z-10 w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center shadow-xl">
+                <Crown className="w-9 h-9 text-yellow-300" strokeWidth={1.5} />
+              </div>
+            </div>
+
+            {/* Close button */}
+            <button
+              onClick={() => setShowPremiumModal(false)}
+              className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            >
+              <X size={16} className="text-white" />
+            </button>
+
+            {/* Content */}
+            <div className="p-7">
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-extrabold text-gray-900 mb-2 tracking-tight">
+                  Nâng cấp lên Premium
+                </h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  Hãy vui lòng đăng ký{" "}
+                  <span className="font-bold text-purple-600">gói Premium</span> nếu bạn
+                  muốn sử dụng tính năng tìm kiếm việc làm thông minh bằng AI.
+                </p>
+              </div>
+
+              {/* Feature list */}
+              <div className="space-y-3 mb-7">
+                {[
+                  {
+                    icon: <Sparkles className="w-4 h-4 text-purple-500" />,
+                    bg: "bg-purple-50",
+                    text: "AI Match việc làm theo portfolio của bạn",
+                  },
+                  {
+                    icon: <Zap className="w-4 h-4 text-yellow-500" />,
+                    bg: "bg-yellow-50",
+                    text: "Gợi ý thông minh & cực kỳ chính xác",
+                  },
+                  {
+                    icon: <Target className="w-4 h-4 text-pink-500" />,
+                    bg: "bg-pink-50",
+                    text: "Tăng cơ hội được tuyển dụng đúng vị trí",
+                  },
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className={`w-8 h-8 rounded-xl ${item.bg} flex items-center justify-center shrink-0`}>
+                      {item.icon}
+                    </div>
+                    <p className="text-sm text-gray-700 font-medium">{item.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              <button
+                onClick={() => {
+                  setShowPremiumModal(false);
+                  navigate("/subscription");
+                }}
+                className="w-full py-3.5 rounded-2xl font-bold text-white bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg shadow-purple-200 transition-all hover:shadow-purple-300 hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 mb-3"
+              >
+                <Crown size={18} className="text-yellow-300" />
+                Đăng ký Premium ngay
+              </button>
+
+              <button
+                onClick={() => setShowPremiumModal(false)}
+                className="w-full py-2.5 rounded-2xl text-sm text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all font-medium"
+              >
+                Để sau
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -23,7 +23,6 @@ import CustomLoading from "@/components/Loading/Loading";
 const ProfileCard = ({
   data,
   onViewDetail,
-  onViewPreview,
   onEdit,
   onDelete,
   isPrimary,
@@ -126,15 +125,6 @@ const ProfileCard = ({
                   className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50  cursor-pointer"
                 >
                   <Eye size={14} /> {isPublic ? "Hủy" : "Đặt"} công khai
-                </button>
-                <button
-                  onClick={() => {
-                    onViewPreview(data.portfolioId);
-                    setShowMenu(false);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm flex items-center gap-2 hover:bg-slate-50  cursor-pointer"
-                >
-                  <Eye size={14} /> Xem bản preview
                 </button>
                 <button
                   onClick={() => {
