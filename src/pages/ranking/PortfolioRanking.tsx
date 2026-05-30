@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import {
   portfolioService,
+  PortfolioRankBy,
+  PortfolioSortMode,
   PortfolioMainBlockItem,
   Reviewer,
 } from "@/services/portfolio.api";
@@ -67,10 +69,13 @@ function SponsoredPortfolioCard({
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    if (isVisible && item.id && !viewReportedRef.current) {
+    if (isVisible && item.id && accessToken && !viewReportedRef.current) {
       timeoutId = setTimeout(() => {
-        reportSponsoredView(item.id, accessToken || undefined);
-        viewReportedRef.current = true;
+        void reportSponsoredView(item.id, accessToken).then((ok) => {
+          if (ok) {
+            viewReportedRef.current = true;
+          }
+        });
       }, 300);
     }
 
@@ -80,9 +85,12 @@ function SponsoredPortfolioCard({
   }, [accessToken, isVisible, item.id]);
 
   const handleClick = () => {
-    if (item.id && !clickReportedRef.current) {
-      reportSponsoredClick(item.id, accessToken || undefined);
-      clickReportedRef.current = true;
+    if (item.id && accessToken && !clickReportedRef.current) {
+      void reportSponsoredClick(item.id, accessToken).then((ok) => {
+        if (ok) {
+          clickReportedRef.current = true;
+        }
+      });
     }
 
     if (item.clickThroughUrl) {
@@ -149,7 +157,14 @@ export default function PortfolioRanking() {
     const loadTopPortfolios = async () => {
       try {
         setIsLoading(true);
-        const response = await portfolioService.fetchAllPortfolios(1, 10, "0");
+        const response = await portfolioService.fetchAllPortfolios(
+          1,
+          10,
+          PortfolioRankBy.total,
+          undefined,
+          PortfolioSortMode.rank_asc,
+          accessToken ?? undefined,
+        );
         if (response && response.items) {
           setTopPortfolios(response.items);
         }
@@ -163,7 +178,7 @@ export default function PortfolioRanking() {
     };
 
     loadTopPortfolios();
-  }, []);
+  }, [accessToken]);
 
   return (
     <div className="min-h-screen bg-white">

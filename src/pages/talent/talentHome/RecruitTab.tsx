@@ -211,11 +211,14 @@ export default function RecruitTab() {
 
     useEffect(() => {
       let t: NodeJS.Timeout | null = null;
-      if (isVisible && sp.id && !seenSponsoredRef.current.has(sp.id)) {
+      if (isVisible && sp.id && accessToken && !seenSponsoredRef.current.has(sp.id)) {
         // wait briefly to avoid accidental visibility
         t = setTimeout(() => {
-          reportSponsoredView(sp.id, accessToken || undefined);
-          seenSponsoredRef.current.add(sp.id);
+          void reportSponsoredView(sp.id, accessToken).then((ok) => {
+            if (ok) {
+              seenSponsoredRef.current.add(sp.id);
+            }
+          });
         }, 300);
       }
       return () => {
@@ -224,16 +227,14 @@ export default function RecruitTab() {
     }, [isVisible, sp.id, accessToken]);
 
     const handleVisit = async () => {
-      try {
-        if (sp.id && !clickedSponsoredRef.current.has(sp.id)) {
-          reportSponsoredClick(sp.id, accessToken || undefined);
-          clickedSponsoredRef.current.add(sp.id);
-        }
-      } catch (err) {
-        console.warn('Error reporting click', err);
-      } finally {
-        if (sp.clickThroughUrl) window.open(sp.clickThroughUrl, '_blank', 'noopener,noreferrer');
+      if (sp.id && accessToken && !clickedSponsoredRef.current.has(sp.id)) {
+        void reportSponsoredClick(sp.id, accessToken).then((ok) => {
+          if (ok) {
+            clickedSponsoredRef.current.add(sp.id);
+          }
+        });
       }
+      if (sp.clickThroughUrl) window.open(sp.clickThroughUrl, '_blank', 'noopener,noreferrer');
     };
 
     const bg = sp.imageUrl || TestImage;

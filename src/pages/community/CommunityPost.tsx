@@ -185,10 +185,13 @@ export default function CommunityPost() {
 
     useEffect(() => {
       let t: NodeJS.Timeout | null = null;
-      if (isVisible && sp.id && !seenRef.current.has(sp.id)) {
+      if (isVisible && sp.id && accessToken && !seenRef.current.has(sp.id)) {
         t = setTimeout(() => {
-          reportSponsoredView(sp.id, accessToken || undefined);
-          seenRef.current.add(sp.id);
+          void reportSponsoredView(sp.id, accessToken).then((ok) => {
+            if (ok) {
+              seenRef.current.add(sp.id);
+            }
+          });
         }, 300);
       }
       return () => {
@@ -197,16 +200,14 @@ export default function CommunityPost() {
     }, [isVisible, sp.id, accessToken, seenRef]);
 
     const handleVisit = () => {
-      try {
-        if (sp.id && !clickedRef.current.has(sp.id)) {
-          reportSponsoredClick(sp.id, accessToken || undefined);
-          clickedRef.current.add(sp.id);
-        }
-      } catch (err) {
-        console.warn('Error reporting community sponsored click', err);
-      } finally {
-        if (sp.clickThroughUrl) window.open(sp.clickThroughUrl, '_blank', 'noopener,noreferrer');
+      if (sp.id && accessToken && !clickedRef.current.has(sp.id)) {
+        void reportSponsoredClick(sp.id, accessToken).then((ok) => {
+          if (ok) {
+            clickedRef.current.add(sp.id);
+          }
+        });
       }
+      if (sp.clickThroughUrl) window.open(sp.clickThroughUrl, '_blank', 'noopener,noreferrer');
     };
 
     const images = sp.imageUrl ? [sp.imageUrl] : sp.videoUrl ? [sp.videoUrl] : [];

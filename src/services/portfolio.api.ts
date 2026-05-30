@@ -15,6 +15,19 @@ export type Ranking = {
   rankPosition: number;
 };
 
+export enum PortfolioRankBy {
+  average = 0,
+  total = 1,
+}
+
+export enum PortfolioSortMode {
+  rank_asc = 0,
+  rank_desc = 1,
+  random = 2,
+  newest = 3,
+  oldest = 4,
+}
+
 export type Reviewer = {
   userId: number;
   name: string;
@@ -2970,16 +2983,13 @@ type FeedNormalizedItem =
 
 export const fetchAllPortfolios = async (
   page: number = 1,
-  pageSize: number = 10,
-  _sort: string = "0",
+  pageSize: number = 20,
+  rankBy: PortfolioRankBy = PortfolioRankBy.average,
   q?: string,
-  rankBy?: string,
-  sortBy?: string,
+  sortBy: PortfolioSortMode = PortfolioSortMode.random,
+  accessToken?: string,
 ): Promise<PortfolioFeedResponse> => {
   try {
-    const API_BASE_URL =
-      import.meta.env.VITE_API_BASE_URL || "/api";
-
     // Build query params
     const params = new URLSearchParams({
       page: page.toString(),
@@ -2990,19 +3000,16 @@ export const fetchAllPortfolios = async (
     // preserve compatibility: q is search query
     if (q && q.trim()) params.set("q", q.trim());
 
-    // support sortby and rankby parameters for /feed/portfolio
-    // prefer explicit sortBy, else fall back to legacy _sort value
-    if (sortBy) {
-      params.set("sortby", sortBy);
-    } else if (_sort) {
-      params.set("sortby", _sort);
-    }
+    // match backend query names exactly
+    const sortValue = String(sortBy);
+    const rankValue = String(rankBy);
+    params.set("rankBy", rankValue);
+    params.set("sort", sortValue);
 
-    if (rankBy) {
-      params.set("rankby", rankBy);
-    }
-
-    const endpoint = `${API_BASE_URL}/feed/portfolio?${params.toString()}`;
+    const endpoint = buildApiUrl(
+      API_BASE_URLS.portfolio,
+      `${API_ENDPOINTS.portfolio.feed}?${params.toString()}`
+    );
     console.log("📡 [fetchAllPortfolios] Fetching from:", endpoint);
 
     const controller = new AbortController();
@@ -3015,6 +3022,7 @@ export const fetchAllPortfolios = async (
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       signal: controller.signal,
       credentials: "include",

@@ -10,6 +10,8 @@ import SortIcon from "@/assets/myWeb/sort.png";
 import ShareIcon from "@/assets/myWeb/share1.png";
 import {
   portfolioService,
+  PortfolioRankBy,
+  PortfolioSortMode,
   PortfolioMainBlockItem,
 } from "@/services/portfolio.api";
 import { SponsoredPostDto } from "@/types/sponsoredPost";
@@ -101,7 +103,14 @@ export default function ExploreTab() {
     try {
       setIsLoading(true);
       // Fetch full list and compute top-rated on client-side (ranking.rankPosition === 1)
-      const response = await portfolioService.fetchAllPortfolios(1, 10000, "2");
+      const response = await portfolioService.fetchAllPortfolios(
+        1,
+        10000,
+        PortfolioRankBy.average,
+        undefined,
+        PortfolioSortMode.random,
+        accessToken ?? undefined,
+      );
 
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
@@ -226,8 +235,10 @@ export default function ExploreTab() {
       const response = await portfolioService.fetchAllPortfolios(
         1,
         10000,
-        "2",
+        PortfolioRankBy.average,
         query,
+        PortfolioSortMode.random,
+        accessToken ?? undefined,
       );
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
@@ -302,16 +313,22 @@ export default function ExploreTab() {
     const onScreen = useOnScreen(ref, '0px', 0.5);
 
     useEffect(() => {
-      if (onScreen && !seenSponsoredRef.current.has(item.id)) {
-        seenSponsoredRef.current.add(item.id);
-        reportSponsoredView(item.id, accessToken ?? undefined);
+      if (onScreen && accessToken && !seenSponsoredRef.current.has(item.id)) {
+        void reportSponsoredView(item.id, accessToken).then((ok) => {
+          if (ok) {
+            seenSponsoredRef.current.add(item.id);
+          }
+        });
       }
-    }, [onScreen, item.id]);
+    }, [accessToken, onScreen, item.id]);
 
     const handleClick = (e: React.MouseEvent) => {
-      if (!clickedSponsoredRef.current.has(item.id)) {
-        clickedSponsoredRef.current.add(item.id);
-        reportSponsoredClick(item.id, accessToken ?? undefined);
+      if (accessToken && !clickedSponsoredRef.current.has(item.id)) {
+        void reportSponsoredClick(item.id, accessToken).then((ok) => {
+          if (ok) {
+            clickedSponsoredRef.current.add(item.id);
+          }
+        });
       }
       if (item.clickThroughUrl) window.open(item.clickThroughUrl, '_blank');
       e.preventDefault();
@@ -319,6 +336,45 @@ export default function ExploreTab() {
 
     return (
       <div ref={ref} className="mb-4">
+        {item.imageUrl ? (
+          <div className="cursor-pointer" onClick={handleClick}>
+            <img src={item.imageUrl} alt={`spon-${item.id}`} className="w-full rounded-lg object-cover" />
+          </div>
+        ) : (
+          <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700">Sponsored</div>
+        )}
+      </div>
+    );
+  }
+
+  function SponsoredDisplayCard({ item }: { item: SponsoredPostDto }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const onScreen = useOnScreen(ref, '0px', 0.5);
+
+    useEffect(() => {
+      if (onScreen && accessToken && !seenSponsoredRef.current.has(item.id)) {
+        void reportSponsoredView(item.id, accessToken).then((ok) => {
+          if (ok) {
+            seenSponsoredRef.current.add(item.id);
+          }
+        });
+      }
+    }, [accessToken, onScreen, item.id]);
+
+    const handleClick = (e: React.MouseEvent) => {
+      if (accessToken && !clickedSponsoredRef.current.has(item.id)) {
+        void reportSponsoredClick(item.id, accessToken).then((ok) => {
+          if (ok) {
+            clickedSponsoredRef.current.add(item.id);
+          }
+        });
+      }
+      if (item.clickThroughUrl) window.open(item.clickThroughUrl, '_blank');
+      e.preventDefault();
+    };
+
+    return (
+      <div ref={ref} className="rounded-xl border border-gray-100 bg-white p-4">
         {item.imageUrl ? (
           <div className="cursor-pointer" onClick={handleClick}>
             <img src={item.imageUrl} alt={`spon-${item.id}`} className="w-full rounded-lg object-cover" />
@@ -423,25 +479,7 @@ export default function ExploreTab() {
                         ranking={currentPortfolio.ranking}
                       />
                     ) : currentDisplay?.kind === 'sponsored' ? (
-                      <div className="rounded-xl border border-gray-100 bg-white p-4">
-                        {currentDisplay.sponsored.imageUrl ? (
-                          <div
-                            className="cursor-pointer"
-                            onClick={(e) => {
-                              if (!clickedSponsoredRef.current.has(currentDisplay.sponsored.id)) {
-                                clickedSponsoredRef.current.add(currentDisplay.sponsored.id);
-                                reportSponsoredClick(currentDisplay.sponsored.id, accessToken ?? undefined);
-                              }
-                              if (currentDisplay.sponsored.clickThroughUrl) window.open(currentDisplay.sponsored.clickThroughUrl, '_blank');
-                              e.preventDefault();
-                            }}
-                          >
-                            <img src={currentDisplay.sponsored.imageUrl} alt={`spon-${currentDisplay.sponsored.id}`} className="w-full rounded-lg object-cover" />
-                          </div>
-                        ) : (
-                          <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700">Sponsored</div>
-                        )}
-                      </div>
+                      <SponsoredDisplayCard item={currentDisplay.sponsored} />
                     ) : (
                       <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
                         <h3 className="text-lg font-bold text-gray-900 mb-2">Portfolio</h3>

@@ -11,9 +11,12 @@ export async function reportSponsoredView(id: number, accessToken?: string) {
     const res = await fetch(url, { method: 'POST', headers });
     if (!res.ok) {
       console.warn('reportSponsoredView failed', res.status);
+      return false;
     }
+    return true;
   } catch (err) {
     console.warn('reportSponsoredView error', err);
+    return false;
   }
 }
 
@@ -25,8 +28,11 @@ export async function reportSponsoredClick(id: number, accessToken?: string) {
     const res = await fetch(url, { method: 'POST', headers });
     if (!res.ok) {
       console.warn('reportSponsoredClick failed', res.status);
+      return false;
     }
+    return true;
   } catch (err) {
     console.warn('reportSponsoredClick error', err);
+    return false;
   }
 }
