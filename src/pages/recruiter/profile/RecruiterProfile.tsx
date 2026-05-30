@@ -12,6 +12,7 @@ import {
   FileText,
   Briefcase,
   History,
+  Megaphone
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -138,7 +139,9 @@ export default function RecruiterProfile() {
   const handleTransactionHistoryClick = () => {
     navigate("/subscription-history");
   };
-
+  const handleSponsoredPostClick = () => {
+    navigate("/sponsored-posts");
+  }
   const handleSupportCenterClick = () => {
     navigate("/support-center");
   };
@@ -246,6 +249,12 @@ export default function RecruiterProfile() {
             desc="Danh sách đã xem"
             onClick={handleTransactionHistoryClick}
           />
+          <ServiceCard
+            icon={<Megaphone className="text-blue-600" />}
+            title="Quảng cáo"
+            desc="Quản lý quảng cáo của bạn"
+            onClick={handleSponsoredPostClick}
+            />
         </div>
 
         {/* Premium Banner */}
