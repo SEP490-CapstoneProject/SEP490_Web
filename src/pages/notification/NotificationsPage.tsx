@@ -2,7 +2,6 @@ import { useState } from "react";
 import SystemNotification from "./SystemNotification";
 import CommunityNotification from "./CommunityNotification";
 import { PremiumInNotification } from "@/components/common/Premium";
-import { useAppSelector } from "@/store/hook";
 import { useUserProfile } from "@/hook/useUserProfile";
 
 // --- Types ---
