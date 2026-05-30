@@ -11,33 +11,15 @@ interface SkillsHistoryModalProps {
   userName?: string;
 }
 
-const SKILL_COLORS = [
-  {
-    bg: "#EEEDFE",
-    bar: "#534AB7",
-    badge: { bg: "#EEEDFE", text: "#3C3489" },
+// 🟢 ĐÃ ĐỔI: Toàn bộ cấu hình màu chuyển về tone Xanh lá (Emerald/Green)
+const SKILL_THEME = {
+  bg: "#E1F5EE",        // Nền nhạt cho icon placeholder (Emerald 100)
+  bar: "#1D9E75",       // Màu chủ đạo cho thanh tiến trình và label chính (Emerald 600)
+  badge: { 
+    bg: "#E1F5EE",      // Nền nhạt cho badge điểm
+    text: "#085041"     // Chữ đậm màu xanh rêu cho badge điểm (Emerald 900)
   },
-  {
-    bg: "#E1F5EE",
-    bar: "#1D9E75",
-    badge: { bg: "#E1F5EE", text: "#085041" },
-  },
-  {
-    bg: "#FAEEDA",
-    bar: "#BA7517",
-    badge: { bg: "#FAEEDA", text: "#633806" },
-  },
-  {
-    bg: "#FAECE7",
-    bar: "#D85A30",
-    badge: { bg: "#FAECE7", text: "#4A1B0C" },
-  },
-  {
-    bg: "#E6F1FB",
-    bar: "#378ADD",
-    badge: { bg: "#E6F1FB", text: "#042C53" },
-  },
-];
+};
 
 function getInitials(name: string) {
   return name
@@ -72,7 +54,7 @@ export const SkillsHistoryModal = ({
 
   if (!isOpen) return null;
 
-  // Sắp xếp kĩ năng: Ưu tiên điểm số độ thành thạo cao nhất lên đầu để làm NỔI BẬTx
+  // Sắp xếp kĩ năng: Ưu tiên điểm số độ thành thạo cao nhất lên đầu
   const sortedSkills = skills ? [...skills].sort((a, b) => b.masteryScore - a.masteryScore) : [];
 
   return (
@@ -89,10 +71,10 @@ export const SkillsHistoryModal = ({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            {/* Avatar */}
+            {/* Avatar - Giữ màu tím gốc hoặc bạn có thể đổi sang SKILL_THEME tùy ý, ở đây tôi đổi đồng bộ sang xanh lá */}
             <div
               className="w-11 h-11 rounded-full flex items-center justify-center font-semibold text-sm flex-shrink-0"
-              style={{ background: "#EEEDFE", color: "#3C3489" }}
+              style={{ background: SKILL_THEME.bg, color: SKILL_THEME.badge.text }}
             >
               {getInitials(userName)}
             </div>
@@ -117,12 +99,12 @@ export const SkillsHistoryModal = ({
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
-              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-500" />
+              {/* 🟢 ĐÃ ĐỔI: Loading spinner sang màu xanh lá border-emerald-500 */}
+              <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-500" />
             </div>
           ) : sortedSkills && sortedSkills.length > 0 ? (
             <div className="flex flex-col gap-3">
-              {sortedSkills.map((skill, index) => {
-                const color = SKILL_COLORS[index % SKILL_COLORS.length];
+              {sortedSkills.map((skill) => {
                 const masteryPct = Math.min(skill.masteryScore, 100);
                 const masteryLabel = getMasteryLabel(skill.masteryScore);
                 
@@ -134,7 +116,7 @@ export const SkillsHistoryModal = ({
                     key={skill.skillId}
                     className={`border rounded-xl p-4 transition-all hover:bg-gray-50/50 ${
                       isTopSkill
-                        ? "border-indigo-200 bg-indigo-50/10 shadow-sm hover:border-indigo-300"
+                        ? "border-emerald-200 bg-emerald-50/10 shadow-sm hover:border-emerald-300" // 🟢 ĐÃ ĐỔI: Viền và nền nổi bật sang tone Xanh lá
                         : "border-gray-100 hover:border-gray-200"
                     }`}
                   >
@@ -144,7 +126,7 @@ export const SkillsHistoryModal = ({
                         {/* Color dot / icon placeholder */}
                         <div
                           className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center text-base font-bold"
-                          style={{ background: color.bg, color: color.bar }}
+                          style={{ background: SKILL_THEME.bg, color: SKILL_THEME.bar }}
                         >
                           {skill.skillName.charAt(0).toUpperCase()}
                         </div>
@@ -169,7 +151,7 @@ export const SkillsHistoryModal = ({
                       {/* Points badge */}
                       <span
                         className="flex-shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full"
-                        style={{ background: color.badge.bg, color: color.badge.text }}
+                        style={{ background: SKILL_THEME.badge.bg, color: SKILL_THEME.badge.text }}
                       >
                         {skill.totalPoints} điểm
                       </span>
@@ -179,14 +161,14 @@ export const SkillsHistoryModal = ({
                     <div className="mb-3">
                       <div className="flex items-center justify-between mb-1.5">
                         <span className="text-xs text-gray-400">Độ thành thạo</span>
-                        <span className="text-xs font-semibold" style={{ color: color.bar }}>
+                        <span className="text-xs font-semibold" style={{ color: SKILL_THEME.bar }}>
                           {skill.masteryScore} · {masteryLabel}
                         </span>
                       </div>
                       <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
                         <div
                           className="h-full rounded-full transition-all"
-                          style={{ width: `${masteryPct}%`, background: color.bar }}
+                          style={{ width: `${masteryPct}%`, background: SKILL_THEME.bar }}
                         />
                       </div>
                     </div>
@@ -222,7 +204,7 @@ export const SkillsHistoryModal = ({
           <button
             onClick={onClose}
             className="w-full py-2 text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity"
-            style={{ background: "#534AB7", color: "#fff" }}
+            style={{ background: SKILL_THEME.bar, color: "#fff" }} // 🟢 ĐÃ ĐỔI: Nút đóng sang màu xanh lá chủ đạo luôn cho hợp rơ
           >
             Đóng
           </button>
