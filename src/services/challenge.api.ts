@@ -294,7 +294,7 @@ export const updateChallenge = async (
  * Delete a challenge
  */
 export const deleteChallenge = async (
-  challengeId: string | number,
+  challengeId: string,
   accessToken: string,
 ): Promise<void> => {
   try {
@@ -310,6 +310,7 @@ export const deleteChallenge = async (
       headers: getAuthHeader(accessToken),
     });
 
+    // 1. Nếu phản hồi thất bại (Mã 4xx, 5xx)
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
       throw new Error(
@@ -317,6 +318,13 @@ export const deleteChallenge = async (
       );
     }
 
+    // 2. Nếu Backend trả về thành công 204 (No Content)
+    if (response.status === 204) {
+      console.log("✅ [deleteChallenge] Success (204 No Content)");
+      return; // Kết thúc hàm luôn tại đây, tuyệt đối không parse JSON
+    }
+
+    // 3. Phòng hờ trường hợp sau này Backend đổi sang trả về mã 200 kèm JSON dữ liệu
     console.log("✅ [deleteChallenge] Success");
   } catch (error) {
     const errorMessage =
