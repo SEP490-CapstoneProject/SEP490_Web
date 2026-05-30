@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import {
@@ -20,7 +20,9 @@ import {
   fetchMatchedPortfolios,
 } from "@/services/company.api";
 import { CompanyPostAPI } from "@/types/companyPost";
+import { SponsoredPostDto } from "@/types/sponsoredPost";
 import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
+import useOnScreen from "@/hooks/useOnScreen";
 import CommentModal from "./CommentModal";
 import BookmarkModal from "./BookmarkModal";
 import { SkillsHistoryModal } from "@/components/portfolio/SkillsHistoryModal";
@@ -29,6 +31,7 @@ import { fetchEmployeeByUserId } from "@/services/profile.api";
 import { SkillHistory } from "@/types/challenge";
 import { notify } from "@/lib/toast";
 import { RootState } from "@/store";
+import { reportSponsoredClick, reportSponsoredView } from "@/services/points.api";
 
 interface IntroData {
   portfolioId: number;
@@ -75,9 +78,8 @@ export default function RecruiterHome() {
   const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
   const [isLoadingCompanyPosts, setIsLoadingCompanyPosts] = useState(false);
 
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredPortfolios, setFilteredPortfolios] = useState<
+  const [, setFilteredPortfolios] = useState<
     PortfolioMainBlockItem[]
   >([]);
   const [allPortfolios, setAllPortfolios] = useState<PortfolioMainBlockItem[]>(
@@ -103,9 +105,21 @@ export default function RecruiterHome() {
   
   // Trạng thái loading nạp chi tiết các block portfolio đầy đủ
   const [isLoadingFullPortfolio, setIsLoadingFullPortfolio] = useState(false);
+ 
+  // Sponsored items from portfolio feed (ads)
+  const [sponsoredItems, setSponsoredItems] = useState<SponsoredPostDto[]>([]);
+  // Deduplication sets to ensure view/click reported once per session
+  const clickedSponsoredRef = useRef<Set<number>>(new Set());
+  const seenSponsoredRef = useRef<Set<number>>(new Set());
+  
+  // Display sequence - mix of portfolios and sponsored cards
+  type DisplayItem = { kind: 'portfolio'; portfolio: PortfolioMainBlockItem } | { kind: 'sponsored'; sponsored: SponsoredPostDto };
+  const [displayItems, setDisplayItems] = useState<DisplayItem[]>([]);
+  const [displayIndex, setDisplayIndex] = useState(0);
 
-  const currentPortfolio = filteredPortfolios[currentIndex];
-
+  const currentDisplay = displayItems[displayIndex];
+  const currentPortfolio = currentDisplay?.kind === 'portfolio' ? currentDisplay.portfolio : undefined;
+ 
   const currentUserName = currentPortfolio
     ? (extractIntroData(currentPortfolio)?.name ?? "User")
     : "User";
@@ -208,7 +222,8 @@ export default function RecruiterHome() {
 
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
-        setCurrentIndex(0);
+        setDisplayIndex(0);
+        setSponsoredItems([]);
         setIsLoading(false);
         return;
       }
@@ -216,7 +231,21 @@ export default function RecruiterHome() {
       const portfolios = response.items;
       setFilteredPortfolios(portfolios);
       setAllPortfolios(portfolios);
-      setCurrentIndex(0);
+      setDisplayIndex(0);
+
+      // Capture sponsored items so UI can render them
+      const spons = (response.sponsoredItems || []).slice();
+      setSponsoredItems(spons);
+
+      // build display sequence: interleave every 4 portfolios
+      const merged: DisplayItem[] = [];
+      for (let i = 0; i < portfolios.length; i++) {
+        merged.push({ kind: 'portfolio', portfolio: portfolios[i] });
+        if (i % 4 === 3 && spons.length > 0) merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+      }
+      while (spons.length > 0) merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+      setDisplayItems(merged);
+      setDisplayIndex(0);
 
       await loadSavedPortfolios(accessToken);
     } catch (error) {
@@ -284,17 +313,17 @@ export default function RecruiterHome() {
 
           setFilteredPortfolios(portfolios);
           setAllPortfolios(portfolios);
-          setCurrentIndex(0);
+          setDisplayIndex(0);
 
           await loadSavedPortfolios(accessToken);
         } else {
           setFilteredPortfolios([]);
-          setCurrentIndex(0);
+          setDisplayIndex(0);
         }
       } catch (error) {
         console.error("❌ Error loading matched portfolios:", error);
         setFilteredPortfolios([]);
-        setCurrentIndex(0);
+      setDisplayIndex(0);
       } finally {
         setIsLoading(false);
       }
@@ -325,16 +354,26 @@ export default function RecruiterHome() {
   }, [currentPortfolio, isLoadingFullPortfolio, fetchFullPortfolioData]);
 
   const handleNext = () => {
-    if (currentIndex < filteredPortfolios.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    if (displayIndex < displayItems.length - 1) {
+      setDisplayIndex(displayIndex + 1);
       setSkillHistory([]);
+      const next = displayItems[displayIndex + 1];
+      if (next?.kind === 'portfolio') {
+        const dispIdx = displayItems.findIndex(di => di.kind === 'portfolio' && di.portfolio.portfolioId === next.portfolio.portfolioId);
+        if (dispIdx >= 0) setDisplayIndex(dispIdx);
+      }
     }
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+    if (displayIndex > 0) {
+      setDisplayIndex(displayIndex - 1);
       setSkillHistory([]);
+      const prev = displayItems[displayIndex - 1];
+      if (prev?.kind === 'portfolio') {
+        const dispIdx = displayItems.findIndex(di => di.kind === 'portfolio' && di.portfolio.portfolioId === prev.portfolio.portfolioId);
+        if (dispIdx >= 0) setDisplayIndex(dispIdx);
+      }
     }
   };
 
@@ -349,11 +388,11 @@ export default function RecruiterHome() {
       );
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
-        setCurrentIndex(0);
+        setDisplayIndex(0);
         return;
       }
       setFilteredPortfolios(response.items);
-      setCurrentIndex(0);
+      setDisplayIndex(0);
     } catch (error) {
       console.error("❌ Error searching portfolios:", error);
     } finally {
@@ -366,7 +405,14 @@ export default function RecruiterHome() {
     setSearchQuery(query);
     if (query.trim() === "") {
       setFilteredPortfolios(allPortfolios);
-      setCurrentIndex(0);
+      const first = allPortfolios[0];
+      if (first) {
+        const idx = displayItems.findIndex(di => di.kind === 'portfolio' && di.portfolio.portfolioId === first.portfolioId);
+        if (idx >= 0) setDisplayIndex(idx);
+        else setDisplayIndex(0);
+      } else {
+        setDisplayIndex(0);
+      }
     }
   };
 
@@ -376,10 +422,46 @@ export default function RecruiterHome() {
     }
   };
 
+  // ----------------------------------------------------------------
+  // Helper: Sponsored sidebar card with view reporting
+  // ----------------------------------------------------------------
+  function SponsoredSidebarCard({ item }: { item: SponsoredPostDto }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const onScreen = useOnScreen(ref, '0px', 0.5);
+
+    useEffect(() => {
+      if (onScreen && !seenSponsoredRef.current.has(item.id)) {
+        seenSponsoredRef.current.add(item.id);
+        reportSponsoredView(item.id, accessToken ?? undefined);
+      }
+    }, [onScreen, item.id]);
+
+    const handleClick = (e: React.MouseEvent) => {
+      if (!clickedSponsoredRef.current.has(item.id)) {
+        clickedSponsoredRef.current.add(item.id);
+        reportSponsoredClick(item.id, accessToken ?? undefined);
+      }
+      if (item.clickThroughUrl) window.open(item.clickThroughUrl, '_blank');
+      e.preventDefault();
+    };
+
+    return (
+      <div ref={ref} className="mb-4">
+        {item.imageUrl ? (
+          <div className="cursor-pointer" onClick={handleClick}>
+            <img src={item.imageUrl} alt={`sponsored-${item.id}`} className="w-full rounded-lg object-cover" />
+          </div>
+        ) : (
+          <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700">Sponsored</div>
+        )}
+      </div>
+    );
+  }
+
   const handleClearSearch = () => {
     setSearchQuery("");
     setFilteredPortfolios(allPortfolios);
-    setCurrentIndex(0);
+    setDisplayIndex(0);
   };
 
   const handleBookmark = () => {
@@ -402,16 +484,12 @@ export default function RecruiterHome() {
     navigate("/subscription");
   };
 
-  if (!currentPortfolio && !isLoading) {
+  if (displayItems.length === 0 && !isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-xl text-gray-600 mb-4">
-            Không tìm thấy portfolio nào
-          </p>
-          <Button onClick={handleClearSearch} className="bg-[#0288D1]">
-            Đặt lại tìm kiếm
-          </Button>
+          <p className="text-xl text-gray-600 mb-4">Không tìm thấy portfolio nào</p>
+          <Button onClick={handleClearSearch} className="bg-[#0288D1]">Đặt lại tìm kiếm</Button>
         </div>
       </div>
     );
@@ -559,7 +637,7 @@ export default function RecruiterHome() {
                 </p>
               </div>
             </div>
-          ) : filteredPortfolios.length === 0 ? (
+          ) : displayItems.length === 0 ? (
             isLoading ? (
               <div className="relative w-full max-w-3xl min-h-128 rounded-2xl overflow-hidden shadow-lg shrink-0 bg-white flex flex-col items-center justify-center">
                 <div className="text-center space-y-6">
@@ -607,27 +685,41 @@ export default function RecruiterHome() {
                     </div>
                   ) : (
                     <div className="animate-in fade-in duration-300">
-                      {currentPortfolio?.blocks &&
-                      Array.isArray(currentPortfolio.blocks) &&
-                      currentPortfolio.blocks.length > 0 ? (
-                        <PortfolioRenderer
-                          blocks={currentPortfolio.blocks}
-                          ranking={currentPortfolio.ranking}
-                        />
-                      ) : currentPortfolio?.blocks &&
-                        !Array.isArray(currentPortfolio.blocks) ? (
-                        <PortfolioRenderer
-                          blocks={[currentPortfolio.blocks]}
-                          ranking={currentPortfolio.ranking}
-                        />
+                      {currentDisplay?.kind === 'portfolio' && currentPortfolio ? (
+                        currentPortfolio.blocks && Array.isArray(currentPortfolio.blocks) && currentPortfolio.blocks.length > 0 ? (
+                          <PortfolioRenderer blocks={currentPortfolio.blocks} ranking={currentPortfolio.ranking} />
+                        ) : currentPortfolio.blocks && !Array.isArray(currentPortfolio.blocks) ? (
+                          <PortfolioRenderer blocks={[currentPortfolio.blocks]} ranking={currentPortfolio.ranking} />
+                        ) : (
+                          <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">{currentPortfolio?.portfolio?.name || "Portfolio"}</h3>
+                            <p className="text-sm text-gray-600">Portfolio này chưa có nội dung để hiển thị.</p>
+                          </div>
+                        )
+                      ) : currentDisplay?.kind === 'sponsored' ? (
+                        <div className="rounded-xl border border-gray-100 bg-white p-4">
+                          {currentDisplay.sponsored.imageUrl ? (
+                            <div
+                              className="cursor-pointer"
+                              onClick={(e) => {
+                                if (!clickedSponsoredRef.current.has(currentDisplay.sponsored.id)) {
+                                  clickedSponsoredRef.current.add(currentDisplay.sponsored.id);
+                                  reportSponsoredClick(currentDisplay.sponsored.id, accessToken ?? undefined);
+                                }
+                                if (currentDisplay.sponsored.clickThroughUrl) window.open(currentDisplay.sponsored.clickThroughUrl, '_blank');
+                                e.preventDefault();
+                              }}
+                            >
+                              <img src={currentDisplay.sponsored.imageUrl} alt={`spon-${currentDisplay.sponsored.id}`} className="w-full rounded-lg object-cover" />
+                            </div>
+                          ) : (
+                            <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700">Sponsored</div>
+                          )}
+                        </div>
                       ) : (
                         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">
-                            {currentPortfolio?.portfolio?.name || "Portfolio"}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            Portfolio này chưa có nội dung để hiển thị.
-                          </p>
+                          <h3 className="text-lg font-bold text-gray-900 mb-2">Portfolio</h3>
+                          <p className="text-sm text-gray-600">Portfolio này chưa có nội dung để hiển thị.</p>
                         </div>
                       )}
                     </div>
@@ -647,7 +739,7 @@ export default function RecruiterHome() {
                 <div className="fixed bottom-4 z-100 w-fit px-6 py-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl flex items-center gap-6">
                   <button
                     onClick={handlePrev}
-                    disabled={currentIndex === 0 || isLoadingFullPortfolio}
+                    disabled={displayIndex === 0 || isLoadingFullPortfolio}
                     className="p-3 hover:bg-slate-100 rounded-2xl transition-all disabled:opacity-20 text-slate-800 cursor-pointer"
                   >
                     <ChevronLeft size={32} strokeWidth={2.5} />
@@ -706,7 +798,7 @@ export default function RecruiterHome() {
 
                   <button
                     onClick={handleNext}
-                    disabled={currentIndex === filteredPortfolios.length - 1 || isLoadingFullPortfolio}
+                    disabled={displayIndex === displayItems.length - 1 || isLoadingFullPortfolio}
                     className="p-3 hover:bg-slate-100 rounded-2xl transition-all disabled:opacity-20 text-slate-800 cursor-pointer"
                   >
                     <ChevronRight size={32} strokeWidth={2.5} />
@@ -739,6 +831,16 @@ export default function RecruiterHome() {
               >
                 Đăng ký ngay
               </button>
+
+              {/* Sponsored Ads from portfolio feed */}
+              {sponsoredItems && sponsoredItems.length > 0 && (
+                <div className="mt-6 border-t pt-4">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Sponsored</h3>
+                  {sponsoredItems.map((item) => (
+                    <SponsoredSidebarCard key={`spon-${item.id}`} item={item} />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </aside>

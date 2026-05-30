@@ -8,12 +8,23 @@ import {
   Zap,
   Beaker,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useAppSelector } from "@/store/hook";
 import { useUserProfile } from "@/hook/useUserProfile";
 import { notify } from "@/lib/toast";
+
+type NavItem = {
+  icon: LucideIcon;
+  label: string;
+  href: string;
+  requireAuth?: boolean;
+  hideOnLogin?: boolean;
+  hideWithCompany?: boolean;
+  hideForTalent?: boolean;
+};
 
 export function Header() {
   const location = useLocation();
@@ -40,7 +51,7 @@ export function Header() {
   };
 
   // Danh sách các tab điều hướng trung tâm
-  const allNavItems = [
+  const allNavItems: NavItem[] = [
     { icon: Library, label: "Giới thiệu", href: "/", hideOnLogin: true },
 
     { icon: Home, label: "Trang chủ", href: homeHref, requireAuth: true },

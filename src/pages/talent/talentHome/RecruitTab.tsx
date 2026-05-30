@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 // Assets & Icons
@@ -15,7 +15,9 @@ import {
 } from "@/store/features/savedPosts/savedPostsSlice";
 import { fetchCompanyPosts, saveCompanyPost, searchCompanyPosts } from "@/services/company.api";
 import { fetchMyPortfolios, fetchMatchedJobs, PostMatch, PortfolioMainBlockItem } from "@/services/portfolio.api";
-import { CompanyPostAPI, CompanyPost, SearchCompanyPostsParams } from "@/types/companyPost";
+import { CompanyPostAPI, CompanyPost, SearchCompanyPostsParams, SponsoredPostAPI } from "@/types/companyPost";
+import useOnScreen from '@/hooks/useOnScreen';
+import { reportSponsoredView, reportSponsoredClick } from '@/services/points.api';
 import { notify } from "@/lib/toast";
 
 export default function RecruitTab() {
@@ -29,8 +31,8 @@ export default function RecruitTab() {
     salary: "",
     type: "",
   });
-  const [filteredPosts, setFilteredPosts] = useState<CompanyPostAPI[]>([]);
-  const [allPosts, setAllPosts] = useState<CompanyPostAPI[]>([]);
+  const [filteredPosts, setFilteredPosts] = useState<(CompanyPostAPI | SponsoredPostAPI)[]>([]);
+  const [allPosts, setAllPosts] = useState<(CompanyPostAPI | SponsoredPostAPI)[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [savingPostIds, setSavingPostIds] = useState<Set<number>>(new Set());
@@ -184,20 +186,95 @@ export default function RecruitTab() {
     setFilteredPosts(allPosts);
   };
 
+  // Sponsored tracking dedupe sets
+  const seenSponsoredRef = useRef<Set<number>>(new Set());
+  const clickedSponsoredRef = useRef<Set<number>>(new Set());
+
   // Extract portfolio position from INTRO block
   const getPortfolioPosition = (portfolio: PortfolioMainBlockItem): string => {
-    const introBlock = portfolio.blocks;
-    if (introBlock && introBlock.data) {
-      return (
-        introBlock.data.studyField ||
-        introBlock.data.department ||
-        introBlock.data.title ||
-        introBlock.data.position ||
-        "Không xác định"
-      );
-    }
-    return "Không xác định";
+    const blocks = Array.isArray(portfolio.blocks) ? portfolio.blocks : [portfolio.blocks as any];
+    const intro = blocks.find((b) => b?.type?.toUpperCase() === 'INTRO') || blocks[0];
+    const introData = intro?.data || {};
+    return (
+      introData.studyField ||
+      introData.department ||
+      introData.title ||
+      introData.position ||
+      "Không xác định"
+    );
   };
+
+  // SponsoredCard component — handles view & click reporting
+  function SponsoredCard({ sp, accessToken }: { sp: SponsoredPostAPI; accessToken?: string | null }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const isVisible = useOnScreen(ref, '0px', 0.5);
+
+    useEffect(() => {
+      let t: NodeJS.Timeout | null = null;
+      if (isVisible && sp.id && !seenSponsoredRef.current.has(sp.id)) {
+        // wait briefly to avoid accidental visibility
+        t = setTimeout(() => {
+          reportSponsoredView(sp.id, accessToken || undefined);
+          seenSponsoredRef.current.add(sp.id);
+        }, 300);
+      }
+      return () => {
+        if (t) clearTimeout(t);
+      };
+    }, [isVisible, sp.id, accessToken]);
+
+    const handleVisit = async () => {
+      try {
+        if (sp.id && !clickedSponsoredRef.current.has(sp.id)) {
+          reportSponsoredClick(sp.id, accessToken || undefined);
+          clickedSponsoredRef.current.add(sp.id);
+        }
+      } catch (err) {
+        console.warn('Error reporting click', err);
+      } finally {
+        if (sp.clickThroughUrl) window.open(sp.clickThroughUrl, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    const bg = sp.imageUrl || TestImage;
+
+    return (
+      <div
+        ref={ref}
+        onClick={handleVisit}
+        className="relative overflow-hidden rounded-[2rem] aspect-[4/5] shadow-lg group transition-all duration-500 hover:-translate-y-2 border border-gray-100 cursor-pointer"
+      >
+        <div
+          className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+          style={{ backgroundImage: `url(${bg})` }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10 group-hover:via-black/40 transition-colors pointer-events-none" />
+        </div>
+
+        {/* Sponsored badge */}
+        <div className="absolute top-4 left-4 z-20">
+          <span className="bg-yellow-400 text-xs text-black font-bold px-3 py-1 rounded-full">Sponsored</span>
+        </div>
+
+        <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
+          <div className="flex items-start gap-4">
+            <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight line-clamp-2 group-hover:text-yellow-300 transition-colors">
+                  {sp.textContent || 'Sponsored content'}
+                </h2>
+                {sp.createdAt && (
+                  <p className="text-xs opacity-80 mt-1">{new Date(sp.createdAt).toLocaleString()}</p>
+                )}
+              </div>
+
+              {/* Image click handles navigation; removed Visit button */}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleSave = async (postId: number) => {
     if (savingPostIds.has(postId)) return;
@@ -369,81 +446,91 @@ export default function RecruitTab() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPosts.map((post) => (
-              <div
-                key={post.postId}
-                className="relative overflow-hidden rounded-[2rem] aspect-[4/5] shadow-lg group transition-all duration-500 hover:-translate-y-2 border border-gray-100"
-              >
-                {/* Background Image */}
+            {filteredPosts.map((post) => {
+              // Sponsored posts have isSponsored === true
+              if ((post as any).isSponsored) {
+                const sp = post as SponsoredPostAPI;
+                return <SponsoredCard key={`sponsored-${sp.id}`} sp={sp} accessToken={accessToken} />;
+              }
+
+              // Otherwise render as CompanyPost
+              const cp = post as CompanyPostAPI;
+              return (
                 <div
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
-                  style={{ backgroundImage: `url(${post.mediaUrl || TestImage})` }}
+                  key={cp.postId}
+                  className="relative overflow-hidden rounded-[2rem] aspect-[4/5] shadow-lg group transition-all duration-500 hover:-translate-y-2 border border-gray-100"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20 group-hover:via-black/50 transition-colors" />
-                </div>
+                  {/* Background Image */}
+                  <div
+                    className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+                    style={{ backgroundImage: `url(${cp.mediaUrl || TestImage})` }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20 group-hover:via-black/50 transition-colors" />
+                  </div>
 
-                {/* Bookmark Button */}
-                <button
-                  onClick={() => handleSave(post.postId)}
-                  disabled={savingPostIds.has(post.postId)}
-                  className="absolute top-5 right-5 z-20 p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all cursor-pointer border border-white/20 group/bookmark disabled:opacity-50"
-                >
-                  {savingPostIds.has(post.postId) ? (
-                    <Loader2 className="w-5 h-5 text-white animate-spin" />
-                  ) : (
-                    <Bookmark
-                      className={`w-5 h-5 transition-all group-hover/bookmark:scale-110 ${
-                        savedPostIds.includes(post.postId)
-                          ? "text-yellow-400 fill-yellow-400"
-                          : "text-white"
-                      }`}
-                    />
-                  )}
-                </button>
+                  {/* Bookmark Button */}
+                  <button
+                    onClick={() => handleSave(cp.postId)}
+                    disabled={savingPostIds.has(cp.postId)}
+                    className="absolute top-5 right-5 z-20 p-3 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full transition-all cursor-pointer border border-white/20 group/bookmark disabled:opacity-50"
+                  >
+                    {savingPostIds.has(cp.postId) ? (
+                      <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    ) : (
+                      <Bookmark
+                        className={`w-5 h-5 transition-all group-hover/bookmark:scale-110 ${
+                          savedPostIds.includes(cp.postId)
+                            ? "text-yellow-400 fill-yellow-400"
+                            : "text-white"
+                        }`}
+                      />
+                    )}
+                  </button>
 
-                {/* Content */}
-                <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
-                  <div className="flex items-start gap-4">
-                    <img
-                      src={post.companyAvatar || ""}
-                      alt={post.companyName}
-                      className="w-14 h-14 rounded-2xl bg-white object-cover border-2 border-white/20 shrink-0 shadow-xl"
-                    />
-                    <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                      <div>
-                        <h2 className="text-xl font-bold tracking-tight line-clamp-1 group-hover:text-blue-400 transition-colors">
-                          {post.position}
-                        </h2>
-                        <p className="text-sm font-medium opacity-80 truncate">
-                          {post.companyName}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-1.5 mt-2">
-                        <div className="flex items-center gap-2 text-xs opacity-90">
-                          <div className="p-1 bg-white/10 rounded-md">
-                            <img src={MapIcon} className="w-3 h-3 invert" alt="" />
-                          </div>
-                          <span className="truncate">{post.address}</span>
+                  {/* Content */}
+                  <div className="absolute inset-0 p-6 flex flex-col justify-end text-white">
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={cp.companyAvatar || ""}
+                        alt={cp.companyName}
+                        className="w-14 h-14 rounded-2xl bg-white object-cover border-2 border-white/20 shrink-0 shadow-xl"
+                      />
+                      <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                        <div>
+                          <h2 className="text-xl font-bold tracking-tight line-clamp-1 group-hover:text-blue-400 transition-colors">
+                            {cp.position}
+                          </h2>
+                          <p className="text-sm font-medium opacity-80 truncate">
+                            {cp.companyName}
+                          </p>
                         </div>
-                        <div className="flex items-center gap-2 text-xs font-bold text-green-400">
-                          <div className="p-1 bg-green-400/10 rounded-md">
-                            <img src={MoneyIcon} className="w-3 h-3 invert" alt="" />
+                        <div className="flex flex-col gap-1.5 mt-2">
+                          <div className="flex items-center gap-2 text-xs opacity-90">
+                            <div className="p-1 bg-white/10 rounded-md">
+                              <img src={MapIcon} className="w-3 h-3 invert" alt="" />
+                            </div>
+                            <span className="truncate">{cp.address}</span>
                           </div>
-                          <span>{post.salary}</span>
+                          <div className="flex items-center gap-2 text-xs font-bold text-green-400">
+                            <div className="p-1 bg-green-400/10 rounded-md">
+                              <img src={MoneyIcon} className="w-3 h-3 invert" alt="" />
+                            </div>
+                            <span>{cp.salary}</span>
+                          </div>
                         </div>
+                        <button
+                          className="mt-4 flex items-center justify-center gap-2 bg-white/10 hover:bg-blue-600 backdrop-blur-md border border-white/20 py-2.5 px-2 rounded-xl transition-all w-full group/btn cursor-pointer font-bold text-sm"
+                          onClick={() => navigate(`/job/${cp.postId}`)}
+                        >
+                          <span>Xem chi tiết</span>
+                          <div className="transition-transform group-hover/btn:translate-x-1">→</div>
+                        </button>
                       </div>
-                      <button
-                        className="mt-4 flex items-center justify-center gap-2 bg-white/10 hover:bg-blue-600 backdrop-blur-md border border-white/20 py-2.5 px-2 rounded-xl transition-all w-full group/btn cursor-pointer font-bold text-sm"
-                        onClick={() => navigate(`/job/${post.postId}`)}
-                      >
-                        <span>Xem chi tiết</span>
-                        <div className="transition-transform group-hover/btn:translate-x-1">→</div>
-                      </button>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>

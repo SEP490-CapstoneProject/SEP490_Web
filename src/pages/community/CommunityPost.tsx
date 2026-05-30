@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import useOnScreen from '@/hooks/useOnScreen';
+import { reportSponsoredView, reportSponsoredClick } from '@/services/points.api';
 import { ImageIcon, Contact, Send, Loader2, Zap, Crown } from "lucide-react";
 import { CommunityPostCard } from "./CommunityPostCard";
 import type { CommunityPost } from "@/types/communityPost.ts";
@@ -15,10 +17,14 @@ export default function CommunityPost() {
   const { profile } = useUserProfile();
   const { user, accessToken } = useAppSelector((state) => state.auth);
 
-  const PAGE_SIZE = 5;
+  const PAGE_SIZE = 20;
   const [nextCursor, setNextCursor] = useState<string | number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
+  // For dedupe tracking sponsored view/click
+  const seenSponsoredRef = useRef<Set<number>>(new Set());
+  const clickedSponsoredRef = useRef<Set<number>>(new Set());
 
   // Thêm tham số isRefresh để biết khi nào cần thay thế list cũ
   const fetchCommunityPosts = async (currentCursor: any, isRefresh = false) => {
@@ -27,7 +33,7 @@ export default function CommunityPost() {
     setIsLoading(true);
     try {
       const response = await fetch(
-        `https://community-service.redmushroom-1d023c6a.southeastasia.azurecontainerapps.io/api/community/posts?pageSize=${PAGE_SIZE}&cursor=${currentCursor || ""}`,
+        `https://community-service.redmushroom-1d023c6a.southeastasia.azurecontainerapps.io/api/community/posts/feed?pageSize=${PAGE_SIZE}&cursor=${currentCursor || ""}&q=A`,
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -37,17 +43,55 @@ export default function CommunityPost() {
 
       if (response.ok) {
         const data = await response.json();
-        console.log("Fetched posts:", data.items);
+        console.log("Fetched feed posts:", data.items);
+
+        // Map feed wrapper items to local shapes and preserve order
+        const mapped = (data.items || []).map((it: any) => {
+          if (!it || !it.type) return null;
+          if (it.type === 'CommunityPost' && it.data) {
+            const d = it.data;
+            return {
+              _type: 'CommunityPost',
+              id: d.id,
+              author: d.author,
+              description: d.description,
+              media: d.media || [],
+              portfolioId: d.portfolioId,
+              portfolioPreview: d.portfolioPreview,
+              favoriteCount: d.favoriteCount || 0,
+              commentCount: d.commentCount || 0,
+              isFavorited: !!d.isFavorited,
+              isSaved: !!d.isSaved,
+              createdAt: d.createdAt,
+            };
+          }
+          if (it.type === 'SponsoredPost' && it.data) {
+            const d = it.data;
+            return {
+              _type: 'SponsoredPost',
+              id: d.id,
+              createdBy: d.createdBy,
+              contentType: d.contentType,
+              textContent: d.textContent,
+              imageUrl: d.imageUrl,
+              videoUrl: d.videoUrl,
+              clickThroughUrl: d.clickThroughUrl,
+              createdAt: d.createdAt,
+              // pass original for debugging
+              _raw: d,
+            };
+          }
+          return null;
+        }).filter(Boolean);
+
         if (isRefresh) {
-          // Nếu refresh, thay thế toàn bộ danh sách bằng dữ liệu mới nhất
-          setPosts(data.items);
+          setPosts(mapped as any[]);
         } else {
-          // Nếu load more, cộng dồn vào danh sách hiện tại
-          setPosts((prev) => [...prev, ...data.items]);
+          setPosts((prev) => [...prev, ...(mapped as any[])]);
         }
 
-        setNextCursor(data.nextCursor);
-        setHasMore(data.items.length === PAGE_SIZE && !!data.nextCursor);
+        setNextCursor(data.cursor ?? data.nextCursor ?? null);
+        setHasMore(!!data.hasMore || (data.items && data.items.length === PAGE_SIZE && !!(data.cursor || data.nextCursor)));
       }
     } catch (error) {
       console.error("Lỗi khi fetch posts:", error);
@@ -64,7 +108,7 @@ export default function CommunityPost() {
 
   useEffect(() => {
     fetchCommunityPosts(null);
-  }, []);
+  }, [accessToken]);
 
   const handleLoadMore = () => {
     fetchCommunityPosts(nextCursor);
@@ -134,10 +178,67 @@ export default function CommunityPost() {
       }
     };
   }, [hasMore, isLoading, handleLoadMore]);
+  // SponsoredCommunityCard component
+  function SponsoredCommunityCard({ sp, accessToken, seenRef, clickedRef }: { sp: any; accessToken?: string | null; seenRef: React.MutableRefObject<Set<number>>; clickedRef: React.MutableRefObject<Set<number>> }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const isVisible = useOnScreen(ref, '0px', 0.5);
+
+    useEffect(() => {
+      let t: NodeJS.Timeout | null = null;
+      if (isVisible && sp.id && !seenRef.current.has(sp.id)) {
+        t = setTimeout(() => {
+          reportSponsoredView(sp.id, accessToken || undefined);
+          seenRef.current.add(sp.id);
+        }, 300);
+      }
+      return () => {
+        if (t) clearTimeout(t);
+      };
+    }, [isVisible, sp.id, accessToken, seenRef]);
+
+    const handleVisit = () => {
+      try {
+        if (sp.id && !clickedRef.current.has(sp.id)) {
+          reportSponsoredClick(sp.id, accessToken || undefined);
+          clickedRef.current.add(sp.id);
+        }
+      } catch (err) {
+        console.warn('Error reporting community sponsored click', err);
+      } finally {
+        if (sp.clickThroughUrl) window.open(sp.clickThroughUrl, '_blank', 'noopener,noreferrer');
+      }
+    };
+
+    const images = sp.imageUrl ? [sp.imageUrl] : sp.videoUrl ? [sp.videoUrl] : [];
+
+    return (
+      <div ref={ref} key={`spon-${sp.id}`} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-2">
+        <div className="p-4">
+          <div className="flex items-start justify-between">
+            <div className="flex space-x-3">
+              <img alt="sponsor" className="w-12 h-12 object-cover rounded-full" src={sp.imageUrl || '/default-avatar.png'} />
+              <div>
+                <h3 className="font-bold text-gray-900 leading-tight">Sponsored</h3>
+                <p className="text-xs text-gray-500">{new Date(sp.createdAt).toLocaleString()}</p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-gray-800 leading-relaxed">{sp.textContent || ''}</p>
+            {images.length > 0 && (
+              <div className="relative mt-4 rounded-xl overflow-hidden border border-gray-100">
+                            <img onClick={handleVisit} src={images[0]} alt="sponsored" className="w-full h-auto max-h-[500px] object-cover cursor-pointer" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="text-slate-900 min-h-screen transition-colors duration-200">
-      <div className="max-w-2xl mx-auto py-2 px-2">
-        {/* Create Post Section */}
+      <div className="max-w-2xl mx-auto py-2 px-2">        {/* Create Post Section */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-2 cursor-pointer">
           <div className="flex space-x-3 mb-4">
             <div className="relative inline-block group">
@@ -228,25 +329,38 @@ export default function CommunityPost() {
 
         {/* Feed List - Hiển thị toàn bộ bài viết từ mock data */}
         <div className="space-y-6">
-          {posts.map((post: CommunityPost) => (
-            <CommunityPostCard
-              key={post.id}
-              id={post.id} // Chuyển id sang string nếu component yêu cầu
-              author={post.author.name}
-              authorId={post.author.id}
-              onDeletePost={handleOpenDeletePost}
-              time={post.createdAt} // Bạn có thể dùng hàm format thời gian tại đây
-              avatar={post.author.avatar}
-              isVerified={post.author.role === "COMPANY"}
-              content={post.description || ""}
-              images={post?.media && post?.media.length > 0 ? post?.media : []}
-              imageTitle={post.portfolioPreview?.data?.title || ""}
-              likes={post.favoriteCount}
-              comments={post.commentCount}
-              isFavorited={post.isFavorited} // Truyền trạng thái đã thích hay chưa
-              isSaved={post.isSaved} // Truyền trạng thái đã lưu hay chưa
-            />
-          ))}
+          {posts.map((post: any) => {
+            if (post._type === 'SponsoredPost') {
+              const sp = post as any;
+              return (
+                <div key={`sponsored-${sp.id}`}>
+                  <SponsoredCommunityCard sp={sp} accessToken={accessToken} seenRef={seenSponsoredRef} clickedRef={clickedSponsoredRef} />
+                </div>
+              );
+            }
+
+            // CommunityPost
+            const cp = post as any;
+            return (
+              <CommunityPostCard
+                key={cp.id}
+                id={cp.id} // Chuyển id sang string nếu component yêu cầu
+                author={cp.author?.name}
+                authorId={cp.author?.id}
+                onDeletePost={handleOpenDeletePost}
+                time={cp.createdAt} // Bạn có thể dùng hàm format thời gian tại đây
+                avatar={cp.author?.avatar}
+                isVerified={cp.author?.role === "COMPANY"}
+                content={cp.description || ""}
+                images={cp?.media && cp?.media.length > 0 ? cp?.media : []}
+                imageTitle={cp.portfolioPreview?.data?.title || ""}
+                likes={cp.favoriteCount}
+                comments={cp.commentCount}
+                isFavorited={cp.isFavorited} // Truyền trạng thái đã thích hay chưa
+                isSaved={cp.isSaved} // Truyền trạng thái đã lưu hay chưa
+              />
+            );
+          })}
         </div>
 
         {/* Footer Link */}

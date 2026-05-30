@@ -1,9 +1,18 @@
 import { ChevronLeft, Trophy, Flame, ArrowUpRight } from "lucide-react";
 import top1Avatar from "@/assets/myWeb/top1avatar.png";
+import TestImage from "@/assets/testImage/testImage.png";
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { portfolioService, PortfolioMainBlockItem, Reviewer } from "@/services/portfolio.api";
+import { useEffect, useRef, useState } from "react";
+import {
+  portfolioService,
+  PortfolioMainBlockItem,
+  Reviewer,
+} from "@/services/portfolio.api";
 import { notify } from "@/lib/toast";
+import { useAppSelector } from "@/store/hook";
+import useOnScreen from "@/hooks/useOnScreen";
+import { reportSponsoredClick, reportSponsoredView } from "@/services/points.api";
+import { SponsoredPostDto } from "@/types/sponsoredPost";
 
 interface IntroData {
   portfolioId: number;
@@ -43,10 +52,98 @@ const extractIntroData = (portfolio: PortfolioMainBlockItem): IntroData => {
   return introData;
 };
 
+function SponsoredPortfolioCard({
+  item,
+  accessToken,
+}: {
+  item: SponsoredPostDto;
+  accessToken?: string | null;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const isVisible = useOnScreen(ref, "0px", 0.5);
+  const viewReportedRef = useRef(false);
+  const clickReportedRef = useRef(false);
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    if (isVisible && item.id && !viewReportedRef.current) {
+      timeoutId = setTimeout(() => {
+        reportSponsoredView(item.id, accessToken || undefined);
+        viewReportedRef.current = true;
+      }, 300);
+    }
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [accessToken, isVisible, item.id]);
+
+  const handleClick = () => {
+    if (item.id && !clickReportedRef.current) {
+      reportSponsoredClick(item.id, accessToken || undefined);
+      clickReportedRef.current = true;
+    }
+
+    if (item.clickThroughUrl) {
+      window.open(item.clickThroughUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
+  const mediaUrl =
+    item.contentType === "Video"
+      ? item.videoUrl || item.imageUrl || TestImage
+      : item.imageUrl || item.videoUrl || TestImage;
+
+  return (
+    <div
+      ref={ref}
+      onClick={handleClick}
+      className="overflow-hidden rounded-[2rem] shadow-lg border border-gray-100 bg-white cursor-pointer group transition-all duration-300 hover:-translate-y-1"
+    >
+      <div className="relative aspect-[16/9] overflow-hidden">
+        {item.contentType === "Video" && item.videoUrl ? (
+          <video
+            src={item.videoUrl}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            muted
+            playsInline
+            autoPlay
+            loop
+          />
+        ) : (
+          <img
+            src={mediaUrl}
+            alt="Sponsored portfolio"
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+          />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent pointer-events-none" />
+        <div className="absolute top-4 left-4 z-10">
+          <span className="bg-yellow-400 text-black text-xs font-bold px-3 py-1 rounded-full">
+            Sponsored
+          </span>
+        </div>
+      </div>
+
+      <div className="p-5">
+        <h3 className="text-lg font-bold text-gray-900 line-clamp-2">
+          {item.textContent || "Sponsored portfolio"}
+        </h3>
+        <p className="mt-2 text-sm text-gray-500 line-clamp-2">
+          Nhấn vào hình ảnh để xem chi tiết.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function PortfolioRanking() {
   const navigate = useNavigate();
   const [topPortfolios, setTopPortfolios] = useState<PortfolioMainBlockItem[]>([]);
+  const [sponsoredPosts, setSponsoredPosts] = useState<SponsoredPostDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const accessToken = useAppSelector((state) => state.auth.accessToken);
 
   useEffect(() => {
     const loadTopPortfolios = async () => {
@@ -56,6 +153,7 @@ export default function PortfolioRanking() {
         if (response && response.items) {
           setTopPortfolios(response.items);
         }
+        setSponsoredPosts(response?.sponsoredItems || []);
       } catch (error) {
         console.error("❌ Error loading portfolios:", error);
         notify.error("Không thể tải danh sách portfolio.");
@@ -307,6 +405,24 @@ export default function PortfolioRanking() {
                   </div>
                 );
               })}
+            </div>
+          </section>
+        )}
+
+        {sponsoredPosts.length > 0 && (
+          <section className="max-w-7xl mx-auto px-6 mt-12 pb-16">
+            <h2 className="text-2xl font-black text-gray-900 mb-6 flex items-center gap-3">
+              <span className="text-xl">⭐</span> Bài tài trợ
+            </h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {sponsoredPosts.map((item) => (
+                <SponsoredPortfolioCard
+                  key={item.id}
+                  item={item}
+                  accessToken={accessToken}
+                />
+              ))}
             </div>
           </section>
         )}

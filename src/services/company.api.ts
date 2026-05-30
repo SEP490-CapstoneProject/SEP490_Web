@@ -1,4 +1,4 @@
-import { CompanyPostsPaginatedResponse, CompanyPostDetail, SearchCompanyPostsResponse, SearchCompanyPostsParams, MatchedPortfoliosResponse } from '@/types/companyPost';
+import { CompanyPostsPaginatedResponse, CompanyFeedPaginatedResponse, CompanyPostDetail, SearchCompanyPostsResponse, SearchCompanyPostsParams, MatchedPortfoliosResponse } from '@/types/companyPost';
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from '@/config/apiConfig';
 
 /**
@@ -16,12 +16,12 @@ import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from '@/config/apiConfig';
  * @param accessToken - Optional access token for authenticated requests
  */
 export const fetchCompanyPosts = async (
-  cursor?: string,
+  cursorParam?: string,
   limit: number = 10,
   accessToken?: string
-): Promise<CompanyPostsPaginatedResponse> => {
+): Promise<CompanyFeedPaginatedResponse> => {
   try {
-    console.log("📡 [fetchCompanyPosts] Starting with cursor:", cursor, "limit:", limit);
+    console.log("📡 [fetchCompanyPosts] Starting with cursor:", cursorParam, "limit:", limit);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
@@ -31,8 +31,8 @@ export const fetchCompanyPosts = async (
 
     // Build query parameters
     const params = new URLSearchParams();
-    if (cursor) {
-      params.append("cursor", cursor);
+    if (cursorParam) {
+      params.append("cursor", cursorParam);
     }
     params.append("limit", limit.toString());
 
@@ -45,9 +45,10 @@ export const fetchCompanyPosts = async (
       headers["Authorization"] = `Bearer ${accessToken}`;
     }
 
-    // Use centralized config
-    const fullUrl = buildApiUrl(API_BASE_URLS.company, API_ENDPOINTS.company.posts) + `?${params.toString()}`;
-    console.log("📡 Making request to:", fullUrl);
+    // Use centralized config — use the new /feed endpoint which returns wrapper items
+    const feedEndpoint = `${API_ENDPOINTS.company.posts}/feed`;
+    const fullUrl = buildApiUrl(API_BASE_URLS.company, feedEndpoint) + `?${params.toString()}`;
+    console.log("📡 Making request to (feed):", fullUrl);
 
     const response = await fetch(fullUrl, {
       method: "GET",
@@ -58,7 +59,7 @@ export const fetchCompanyPosts = async (
 
     clearTimeout(timeoutId);
 
-    console.log("📡 Company posts API response status:", response.status);
+    console.log("📡 Company posts API (feed) response status:", response.status);
 
     const contentType = response.headers.get("content-type");
     let data: unknown;
@@ -66,7 +67,7 @@ export const fetchCompanyPosts = async (
     if (contentType?.includes("application/json")) {
       try {
         data = await response.json();
-        console.log("📦 Response data:", data);
+        console.log("📦 Feed response data:", data);
       } catch (parseError) {
         console.error("❌ JSON parse error:", parseError);
         throw new Error("Invalid response format from server (JSON parse failed)");
@@ -77,27 +78,83 @@ export const fetchCompanyPosts = async (
     }
 
     if (!response.ok) {
-      const errorMsg = (data as Record<string, unknown>)?.message || "Failed to fetch company posts";
+      const errorMsg = (data as Record<string, unknown>)?.message || "Failed to fetch company posts (feed)";
       console.error("❌ Fetch error:", errorMsg);
       throw new Error(String(errorMsg));
     }
 
-    // Validate response structure - should have items, nextCursor, hasMore
-    if (
-      !data ||
-      typeof data !== "object" ||
-      !Array.isArray((data as Record<string, unknown>).items)
-    ) {
-      console.error("❌ Invalid response format:", data);
+    // New feed format: { items: [ { type, isSponsored, sponsoredLabel, data }, ... ], cursor, limit }
+    if (!data || typeof data !== "object" || !Array.isArray((data as Record<string, unknown>).items)) {
+      console.error("❌ Invalid feed response format:", data);
       throw new Error("Invalid response format from server");
     }
 
+    const rawItems = (data as Record<string, any>).items as any[];
+
+    // Map feed items preserving order: CompanyPost -> CompanyPostAPI, SponsoredPost -> SponsoredPostAPI
+    const mappedItems: any[] = [];
+    for (const it of rawItems) {
+      if (!it || !it.type) continue;
+      if (it.type === "CompanyPost" && it.data) {
+        const d = it.data;
+        mappedItems.push({
+          postId: d.postId,
+          position: d.position,
+          companyName: d.companyName,
+          companyAvatar: d.companyAvatar,
+          coverImageUrl: d.coverImageUrl,
+          mediaType: d.mediaType,
+          mediaUrl: d.mediaUrl || d.coverImageUrl || "",
+          address: d.address,
+          salary: d.salary,
+          employmentType: d.employmentType,
+          createdAt: d.createdAt,
+          isSaved: typeof d.isSaved === "boolean" ? d.isSaved : false,
+          isSponsored: false,
+        } as import('@/types/companyPost').CompanyPostAPI);
+      } else if (it.type === "SponsoredPost" && it.data) {
+        const d = it.data;
+        mappedItems.push({
+          id: d.id,
+          createdBy: d.createdBy,
+          contentType: d.contentType,
+          textContent: d.textContent,
+          imageUrl: d.imageUrl,
+          videoUrl: d.videoUrl,
+          pointsSpent: d.pointsSpent,
+          durationDays: d.durationDays,
+          startDate: d.startDate,
+          expiryDate: d.expiryDate,
+          status: d.status,
+          clickThroughUrl: d.clickThroughUrl,
+          viewCount: d.viewCount,
+          clickCount: d.clickCount,
+          createdAt: d.createdAt,
+          isSponsored: true,
+        } as import('@/types/companyPost').SponsoredPostAPI);
+      } else {
+        // Unknown item type: ignore for now
+        console.warn("⚠️ Unknown feed item type, skipping:", it?.type);
+      }
+    }
+
+    const responseCursor = (data as Record<string, any>).cursor ?? (data as Record<string, any>).nextCursor ?? null;
+    const limitReturned = (data as Record<string, any>).limit ?? (params.get("limit") ? Number(params.get("limit")) : limit);
+
+    const paginatedResponse = {
+      items: mappedItems,
+      cursor: responseCursor,
+      limit: limitReturned,
+    } as import('@/types/companyPost').CompanyFeedPaginatedResponse;
+
     console.log(
-      "✅ Company posts fetched successfully:",
-      ((data as Record<string, unknown>).items as unknown[])?.length || 0,
-      "posts"
+      "✅ Company posts (mapped) fetched successfully:",
+      mappedItems.length,
+      "items, cursor:",
+      paginatedResponse.cursor
     );
-    return data as CompanyPostsPaginatedResponse;
+
+    return paginatedResponse;
   } catch (error) {
     if (error instanceof TypeError && error.message === "Failed to fetch") {
       console.error("❌ CORS Error or Network Error:", error);

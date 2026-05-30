@@ -230,8 +230,9 @@ export const ApplicationModal = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {portfolios.map((portfolio) => {
-                const introData = portfolio.blocks?.data || {};
-                const isSelected = selectedPortfolioId === portfolio.portfolioId;
+              const _blocks = Array.isArray(portfolio.blocks) ? portfolio.blocks : [portfolio.blocks];
+              const introData = (_blocks[0]?.data) || {};
+              const isSelected = selectedPortfolioId === portfolio.portfolioId;
                 
                 return (
                   <div
