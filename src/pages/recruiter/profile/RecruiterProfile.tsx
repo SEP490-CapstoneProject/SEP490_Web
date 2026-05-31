@@ -12,7 +12,6 @@ import {
   FileText,
   Briefcase,
   History,
-  Megaphone,
   ShoppingBag,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -140,9 +139,6 @@ export default function RecruiterProfile() {
   const handleTransactionHistoryClick = () => {
     navigate("/subscription-history");
   };
-  const handleSponsoredPostClick = () => {
-    navigate("/sponsored-posts");
-  };
   const handleRewardsShopClick = () => {
     navigate("/company-rewards");
   };
@@ -260,12 +256,6 @@ export default function RecruiterProfile() {
             title="Lịch sử giao dịch"
             desc="Danh sách đã xem"
             onClick={handleTransactionHistoryClick}
-          />
-          <ServiceCard
-            icon={<Megaphone className="text-blue-600" />}
-            title="Quảng cáo"
-            desc="Quản lý quảng cáo của bạn"
-            onClick={handleSponsoredPostClick}
           />
           <ServiceCard
             icon={<ShoppingBag className="text-blue-600" />}
