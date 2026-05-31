@@ -1,4 +1,5 @@
 import { API_BASE_URLS, API_ENDPOINTS, buildApiUrl } from "@/config/apiConfig";
+import { SponsoredPostDto } from "@/types/sponsoredPost";
 
 export type PortfolioBlock = {
   id: number;
@@ -13,6 +14,19 @@ export type Ranking = {
   averageScore: number;
   rankPosition: number;
 };
+
+export enum PortfolioRankBy {
+  average = 0,
+  total = 1,
+}
+
+export enum PortfolioSortMode {
+  rank_asc = 0,
+  rank_desc = 1,
+  random = 2,
+  newest = 3,
+  oldest = 4,
+}
 
 export type Reviewer = {
   userId: number;
@@ -47,7 +61,8 @@ export type PortfolioMainBlockItem = {
   createdAt?: string;
   updatedAt?: string;
   ranking?: Ranking;
-  blocks: PortfolioBlock;
+  // blocks should be an array of PortfolioBlock to match UI consumers
+  blocks: PortfolioBlock[];
   reviewers?: Reviewer[];
 };
 
@@ -58,6 +73,10 @@ export type PortfoliosPageResponse = {
   page: number;
   pageSize: number;
   totalPages: number;
+};
+
+export type PortfolioFeedResponse = PortfoliosPageResponse & {
+  sponsoredItems: SponsoredPostDto[];
 };
 
 // Type for API response structure
@@ -1012,7 +1031,7 @@ export const PORTFOLIO_MOCK_Main_Block: PortfolioMainBlockItem = {
     averageScore: 0,
     rankPosition: 1,
   },
-  blocks: {
+  blocks: [{
     id: 101,
     type: "INTRO",
     variant: "INTROONE",
@@ -1026,7 +1045,7 @@ export const PORTFOLIO_MOCK_Main_Block: PortfolioMainBlockItem = {
       email: "quyenttse170347@fpt.edu.vn",
       phone: "0123456789",
     },
-  },
+  }],
 };
 
 export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
@@ -1059,7 +1078,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
       averageScore: 0,
       rankPosition: 2,
     },
-    blocks: {
+    blocks: [{
       id: 201,
       type: "INTRO",
       variant: "INTROTWO",
@@ -1074,7 +1093,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
         email: "annhien@gmail.com",
         phone: "0123456789",
       },
-    },
+    }],
   },
   {
     portfolioId: 30,
@@ -1089,7 +1108,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
       averageScore: 0,
       rankPosition: 3,
     },
-    blocks: {
+    blocks: [{
       id: 301,
       type: "INTRO",
       variant: "INTROTHREE",
@@ -1101,7 +1120,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
         department: "Khoa CNTT - Kỹ thuật phần mềm",
         gpa: 3.9,
       },
-    },
+    }],
   },
   {
     portfolioId: 40,
@@ -1116,7 +1135,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
       averageScore: 0,
       rankPosition: 4,
     },
-    blocks: {
+    blocks: [{
       id: 20001,
       type: "INTRO",
       variant: "INTROFOUR",
@@ -1127,7 +1146,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
         school: "Đại học Bách Khoa TP.HCM",
         department: "Khoa khoa học & kỹ thuật máy tính",
       },
-    },
+    }],
   },
   {
     portfolioId: 50,
@@ -1142,7 +1161,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
       averageScore: 0,
       rankPosition: 5,
     },
-    blocks: {
+    blocks: [{
       id: 3001,
       type: "INTRO",
       variant: "INTROFIVE",
@@ -1155,7 +1174,7 @@ export const PORTFOLIO_LIST_MOCK: PortfolioMainBlockItem[] = [
         department: "Khoa nội tim mạch",
         school: "Bệnh viện Đại học Y Dược TP.HCM",
       },
-    },
+    }],
   },
 ];
 
@@ -1248,7 +1267,7 @@ const upsertPortfolioListItem = (
       name: portfolioName,
       status,
     },
-    blocks: getMainBlockForList(portfolio.blocks),
+    blocks: [getMainBlockForList(portfolio.blocks)],
   };
 
   const existingIndex = PORTFOLIO_LIST_MOCK.findIndex(
@@ -1303,97 +1322,105 @@ const normalizePortfolioBlocks = (blocks: PortfolioBlock[]): PortfolioBlock[] =>
 const normalizeMainPortfolioItem = (
   item: any,
 ): PortfolioMainBlockItem => {
+  // Defensive source (item might be wrapper.data)
+  const src = item?.data ?? item ?? {};
+
   // Debug: Log input structure
   console.log(`📦 [normalizeMainPortfolioItem] Input item structure:`, {
-    portfolioId: item?.portfolioId,
-    employeeId: item?.employeeId,
-    portfolioName: item?.portfolioName,
-    blocksType: typeof item?.blocks,
-    blocksIsArray: Array.isArray(item?.blocks),
-    blocksLength: Array.isArray(item?.blocks) ? item.blocks.length : 'N/A',
-    blocksFirstItem: Array.isArray(item?.blocks) ? item.blocks[0] : item?.blocks,
+    portfolioId: src?.portfolioId ?? src?.id,
+    employeeId: src?.employeeId,
+    portfolioName: src?.portfolioName ?? src?.portfolio?.name,
+    blocksType: typeof src?.blocks,
+    blocksIsArray: Array.isArray(src?.blocks),
+    blocksLength: Array.isArray(src?.blocks) ? src.blocks.length : 'N/A',
   });
 
-  // Handle API response format (blocks is array)
-  if (Array.isArray(item.blocks)) {
-    // Find INTRO block for display
-    const introBlock = item.blocks.find(
-      (block: PortfolioBlock) => block.type.toUpperCase() === "INTRO",
-    ) || item.blocks[0];
+  const blocksArray: PortfolioBlock[] = Array.isArray(src.blocks)
+    ? normalizePortfolioBlocks(src.blocks)
+    : src.blocks && src.blocks.type
+    ? [ { ...src.blocks, data: normalizeIntroData(src.blocks.data) } ]
+    : [];
 
-    console.log(`📦 [normalizeMainPortfolioItem] Processing portfolio ${item.portfolioId}:`, {
-      isMain: item.isMain,
-      isPublic: item.isPublic,
-      status: item.status,
-      introBlockType: introBlock?.type,
-      introBlockDataKeys: Object.keys(introBlock?.data || {}),
-    });
-
-    return {
-      portfolioId: item.portfolioId,
-      employeeId: item.employeeId,
-      userId: item.employeeId || item.userId,
-      portfolioName: item.portfolioName,
-      status: item.status,
-      isMain: item.isMain,
-      isPublic: item.isPublic,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-      portfolio: {
-        name: item.portfolioName || item.portfolio?.name || "Hồ sơ",
-        status: item.category ? 1 : 0,
-      },
-      blocks: {
-        ...introBlock,
-        data: introBlock
-          ? normalizeIntroData(introBlock.data)
-          : {},
-      },
-    };
-  }
-
-  // Handle old format (blocks is single object)
-  if (item.blocks && item.blocks.type) {
-    console.log(`📦 [normalizeMainPortfolioItem] Using old single-object blocks format`);
-    return {
-      ...item,
-      blocks: {
-        ...item.blocks,
-        data: normalizeIntroData(item.blocks.data),
-      },
-    };
-  }
-
-  // Fallback: if no blocks, create empty structure to prevent errors
-  console.warn(`⚠️ [normalizeMainPortfolioItem] No valid blocks found, using fallback structure`);
-  console.warn(`⚠️ Item data:`, {
-    portfolioId: item?.portfolioId,
-    portfolioName: item?.portfolioName,
-    blocksStructure: item?.blocks,
-  });
-
-  return {
-    portfolioId: item?.portfolioId || 0,
-    employeeId: item?.employeeId || 0,
-    userId: item?.employeeId || item?.userId || 0,
-    portfolioName: item?.portfolioName || "Hồ sơ không có tên",
-    status: item?.status || "draft",
-    isMain: item?.isMain || false,
-    isPublic: item?.isPublic || false,
-    createdAt: item?.createdAt || new Date().toISOString(),
-    updatedAt: item?.updatedAt || new Date().toISOString(),
-    portfolio: {
-      name: item?.portfolioName || "Hồ sơ",
-      status: item?.category ? 1 : 0,
-    },
-    blocks: {
+  // Ensure at least one intro block exists
+  if (blocksArray.length === 0) {
+    blocksArray.push({
       id: 0,
       type: "INTRO",
-      variant: "",
-      order: 0,
-      data: normalizeIntroData(item?.blocks?.data || {}),
+      variant: "INTROONE",
+      order: 1,
+      data: {},
+    });
+  }
+
+  // Build normalized item preserving ranking and reviewers
+  const normalized: PortfolioMainBlockItem = {
+    portfolioId: Number(src.portfolioId ?? src.id ?? 0),
+    employeeId: Number(src.employeeId ?? src.userId ?? 0),
+    userId: src.userId ?? src.employeeId ?? undefined,
+    portfolioName: src.portfolioName ?? src.portfolio?.name ?? undefined,
+    status: src.status,
+    isMain: !!src.isMain,
+    isPublic: !!src.isPublic,
+    createdAt: src.createdAt,
+    updatedAt: src.updatedAt,
+    portfolio: {
+      name: src.portfolioName ?? src.portfolio?.name ?? "Hồ sơ",
+      status: src.category ? 1 : 0,
     },
+    ranking: src.ranking ? { ...src.ranking } : undefined,
+    blocks: blocksArray,
+    reviewers: Array.isArray(src.reviewers) ? src.reviewers : src.reviewers ? [src.reviewers] : undefined,
   };
+
+  return normalized;
+};
+
+const normalizeSponsoredPostItem = (item: any): SponsoredPostDto => {
+  return {
+    id: Number(item?.id ?? 0),
+    createdBy: Number(item?.createdBy ?? 0),
+    contentType: (item?.contentType ?? "Image") as SponsoredPostDto["contentType"],
+    textContent: item?.textContent ?? null,
+    imageUrl: item?.imageUrl ?? null,
+    videoUrl: item?.videoUrl ?? null,
+    pointsSpent: Number(item?.pointsSpent ?? 0),
+    durationDays: Number(item?.durationDays ?? 0),
+    startDate: item?.startDate ?? "",
+    expiryDate: item?.expiryDate ?? "",
+    status: item?.status ?? "Active",
+    clickThroughUrl: item?.clickThroughUrl ?? null,
+    viewCount: Number(item?.viewCount ?? 0),
+    clickCount: Number(item?.clickCount ?? 0),
+    createdAt: item?.createdAt ?? "",
+    updatedAt: item?.updatedAt ?? null,
+  };
+};
+
+const normalizePortfolioQuery = (value: string): string => value.trim().toLowerCase();
+
+const matchesPortfolioQuery = (portfolio: PortfolioMainBlockItem, query: string): boolean => {
+  const normalizedQuery = normalizePortfolioQuery(query);
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const blocks = Array.isArray(portfolio.blocks) ? portfolio.blocks : [portfolio.blocks];
+  const introBlock = blocks.find((block) => block?.type?.toUpperCase() === "INTRO");
+  const introData = (introBlock?.data as Record<string, unknown>) || {};
+  const haystack = [
+    portfolio.portfolioName,
+    portfolio.portfolio?.name,
+    (introData.name as string) || "",
+    (introData.fullName as string) || "",
+    (introData.studyField as string) || "",
+    (introData.title as string) || "",
+    (introData.description as string) || "",
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return haystack.includes(normalizedQuery);
 };
 
 export const fetchPortfolio = async (userId: number, portfolioId: number) => {
@@ -2950,24 +2977,39 @@ export const deletePortfolio = async (
 };
 
 // Fetch all portfolios without authentication (public listing)
-export const fetchAllPortfolios = async (page: number = 1, pageSize: number = 10, sort: string = "0", q?: string): Promise<PortfoliosPageResponse> => {
-  try {
-    const API_BASE_URL =
-      import.meta.env.VITE_API_BASE_URL || "/api";
+type FeedNormalizedItem =
+  | { kind: "portfolio"; value: PortfolioMainBlockItem }
+  | { kind: "sponsored"; value: SponsoredPostDto };
 
+export const fetchAllPortfolios = async (
+  page: number = 1,
+  pageSize: number = 20,
+  rankBy: PortfolioRankBy = PortfolioRankBy.average,
+  q?: string,
+  sortBy: PortfolioSortMode = PortfolioSortMode.random,
+  accessToken?: string,
+): Promise<PortfolioFeedResponse> => {
+  try {
     // Build query params
     const params = new URLSearchParams({
       page: page.toString(),
       pageSize: pageSize.toString(),
-      sort: sort, // 0 = rank_asc, 2 = random
+      includeCompliments: "false",
     });
 
-    // Add search query if provided
-    if (q && q.trim()) {
-      params.append("q", q.trim());
-    }
+    // preserve compatibility: q is search query
+    if (q && q.trim()) params.set("q", q.trim());
 
-    const endpoint = `${API_BASE_URL}/portfolio?${params.toString()}`;
+    // match backend query names exactly
+    const sortValue = String(sortBy);
+    const rankValue = String(rankBy);
+    params.set("rankBy", rankValue);
+    params.set("sort", sortValue);
+
+    const endpoint = buildApiUrl(
+      API_BASE_URLS.portfolio,
+      `${API_ENDPOINTS.portfolio.feed}?${params.toString()}`
+    );
     console.log("📡 [fetchAllPortfolios] Fetching from:", endpoint);
 
     const controller = new AbortController();
@@ -2980,6 +3022,7 @@ export const fetchAllPortfolios = async (page: number = 1, pageSize: number = 10
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
       signal: controller.signal,
       credentials: "include",
@@ -3017,7 +3060,8 @@ export const fetchAllPortfolios = async (page: number = 1, pageSize: number = 10
     }
 
     // Normalize the response - handle different response formats
-    let portfolios: any[] = [];
+    let portfolios: PortfolioMainBlockItem[] = [];
+    let sponsoredItems: SponsoredPostDto[] = [];
     let paginationInfo = {
       total: 0,
       page: page,
@@ -3028,32 +3072,43 @@ export const fetchAllPortfolios = async (page: number = 1, pageSize: number = 10
     if (Array.isArray(data)) {
       // Format: [ {...}, {...}, ... ]
       console.log("✅ Format: Direct array");
-      portfolios = data;
-      paginationInfo.total = data.length;
+      portfolios = data.map((item: any) => normalizeMainPortfolioItem(item));
+      paginationInfo.total = portfolios.length;
       paginationInfo.totalPages = 1;
     } else if (data && Array.isArray(data.data)) {
       // Format: { data: [...] }
       console.log("✅ Format: { data: [...] }");
-      portfolios = data.data;
+      portfolios = data.data.map((item: any) => normalizeMainPortfolioItem(item));
       paginationInfo.total = data.total || portfolios.length;
       paginationInfo.page = data.page || page;
       paginationInfo.pageSize = data.pageSize || pageSize;
       paginationInfo.totalPages = data.totalPages || Math.ceil(paginationInfo.total / paginationInfo.pageSize);
     } else if (data && Array.isArray(data.items)) {
-      // Format: { items: [...], total: ..., page: ... } (pagination)
-      console.log("✅ Format: { items: [...], total, page, ... } (Pagination)");
-      console.log("📦 Pagination info - total:", data.total, "page:", data.page, "pageSize:", data.pageSize);
-      portfolios = data.items;
+      // Format: { items: [...], totalCount: ..., currentPage: ... } (feed)
+      console.log("✅ Format: { items: [...], totalCount, currentPage, ... } (Feed)");
+      const normalizedItems: FeedNormalizedItem[] = data.items.map((item: any) => {
+        if (item?.type === "SponsoredPost" || item?.isSponsored) {
+          return { kind: "sponsored" as const, value: normalizeSponsoredPostItem(item.data ?? item) };
+        }
+        return { kind: "portfolio" as const, value: normalizeMainPortfolioItem(item.data ?? item) };
+      });
+
+      portfolios = normalizedItems
+        .filter((item) => item.kind === "portfolio")
+        .map((item) => item.value as PortfolioMainBlockItem);
+      sponsoredItems = normalizedItems
+        .filter((item) => item.kind === "sponsored")
+        .map((item) => item.value as SponsoredPostDto);
       paginationInfo = {
-        total: data.total || portfolios.length,
-        page: data.page || page,
+        total: data.totalCount || portfolios.length,
+        page: data.currentPage || page,
         pageSize: data.pageSize || pageSize,
-        totalPages: data.totalPages || Math.ceil((data.total || portfolios.length) / (data.pageSize || pageSize))
+        totalPages: data.totalPages || Math.ceil((data.totalCount || portfolios.length) / (data.pageSize || pageSize))
       };
     } else if (data && data.portfolios && Array.isArray(data.portfolios)) {
       // Format: { portfolios: [...] }
       console.log("✅ Format: { portfolios: [...] }");
-      portfolios = data.portfolios;
+      portfolios = data.portfolios.map((item: any) => normalizeMainPortfolioItem(item));
       paginationInfo.total = portfolios.length;
       paginationInfo.totalPages = 1;
     } else {
@@ -3062,6 +3117,7 @@ export const fetchAllPortfolios = async (page: number = 1, pageSize: number = 10
       console.warn("⚠️ data keys:", data ? Object.keys(data) : "null");
       return {
         items: [],
+        sponsoredItems: [],
         total: 0,
         page: page,
         pageSize: pageSize,
@@ -3069,9 +3125,14 @@ export const fetchAllPortfolios = async (page: number = 1, pageSize: number = 10
       };
     }
 
-    console.log("✅ Fetched", portfolios.length, "portfolios from page", paginationInfo.page, "of", paginationInfo.totalPages);
+    const filteredPortfolios = q && q.trim()
+      ? portfolios.filter((portfolio) => matchesPortfolioQuery(portfolio, q))
+      : portfolios;
+
+    console.log("✅ Fetched", filteredPortfolios.length, "portfolios from page", paginationInfo.page, "of", paginationInfo.totalPages);
     return {
-      items: portfolios,
+      items: filteredPortfolios,
+      sponsoredItems,
       total: paginationInfo.total,
       page: paginationInfo.page,
       pageSize: paginationInfo.pageSize,

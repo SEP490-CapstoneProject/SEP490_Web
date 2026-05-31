@@ -160,6 +160,7 @@ export const API_ENDPOINTS = {
 
   // Portfolio Endpoints
   portfolio: {
+    feed: "/feed/portfolio",
     list: "/portfolio",
     detail: (id: number) => `/portfolio/${id}`,
     ranking: (id: number) => `/portfolio/${id}/ranking`,

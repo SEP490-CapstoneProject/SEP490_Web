@@ -42,10 +42,36 @@ export interface CompanyPostAPI {
 /**
  * Pagination info from API response
  */
+export interface SponsoredPostAPI {
+  id: number;
+  createdBy?: number;
+  contentType: "Image" | "Video" | string;
+  textContent?: string | null;
+  imageUrl?: string | null;
+  videoUrl?: string | null;
+  pointsSpent?: number | null;
+  durationDays?: number | null;
+  startDate?: string | null;
+  expiryDate?: string | null;
+  status?: string | null;
+  clickThroughUrl?: string | null;
+  viewCount?: number;
+  clickCount?: number;
+  createdAt?: string | null;
+  // Mark as sponsored for runtime checks
+  isSponsored: true;
+}
+
 export interface CompanyPostsPaginatedResponse {
   items: CompanyPostAPI[];
   nextCursor: string | null;
   hasMore: boolean;
+}
+
+export interface CompanyFeedPaginatedResponse {
+  items: (CompanyPostAPI | SponsoredPostAPI)[];
+  cursor?: string | null;
+  limit?: number;
 }
 
 /**

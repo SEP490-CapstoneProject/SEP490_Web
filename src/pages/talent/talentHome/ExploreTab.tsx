@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { getPortfolioSkillsHistory } from "@/services/challenge.api";
@@ -10,11 +10,16 @@ import SortIcon from "@/assets/myWeb/sort.png";
 import ShareIcon from "@/assets/myWeb/share1.png";
 import {
   portfolioService,
+  PortfolioRankBy,
+  PortfolioSortMode,
   PortfolioMainBlockItem,
 } from "@/services/portfolio.api";
+import { SponsoredPostDto } from "@/types/sponsoredPost";
 import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
 import { notify } from "@/lib/toast";
 import { useNavigate } from "react-router-dom";
+import useOnScreen from "@/hooks/useOnScreen";
+import { reportSponsoredView, reportSponsoredClick } from "@/services/points.api";
 
 interface IntroData {
   portfolioId: number;
@@ -55,10 +60,9 @@ const extractIntroData = (
 
 export default function ExploreTab() {
   const navigate = useNavigate();
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const accessToken = useSelector((state: RootState) => state.auth.accessToken);
-  const [filteredPortfolios, setFilteredPortfolios] = useState<
+  const [, setFilteredPortfolios] = useState<
     PortfolioMainBlockItem[]
   >([]);
   const [allPortfolios, setAllPortfolios] = useState<PortfolioMainBlockItem[]>(
@@ -70,7 +74,23 @@ export default function ExploreTab() {
   const [isSearching, setIsSearching] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const currentPortfolio = filteredPortfolios[currentIndex];
+  // Sponsored items from portfolio feed
+  const [sponsoredItems, setSponsoredItems] = useState<SponsoredPostDto[]>([]);
+  const seenSponsoredRef = useRef<Set<number>>(new Set());
+  const clickedSponsoredRef = useRef<Set<number>>(new Set());
+
+  // Display sequence mixes portfolios and sponsored cards
+  type DisplayItem =
+    | { kind: 'portfolio'; portfolio: PortfolioMainBlockItem }
+    | { kind: 'sponsored'; sponsored: SponsoredPostDto };
+  const [displayItems, setDisplayItems] = useState<DisplayItem[]>([]);
+  const [displayIndex, setDisplayIndex] = useState(0);
+
+  const currentDisplay = displayItems[displayIndex];
+  const currentPortfolio = currentDisplay?.kind === 'portfolio' ? currentDisplay.portfolio : undefined;
+
+  // currentPortfolio now derived from display sequence
+  // const currentPortfolio = filteredPortfolios[currentIndex];
   const [isSkillModalOpen, setIsSkillModalOpen] = useState(false);
   const [skillHistory, setSkillHistory] = useState<SkillHistory[]>([]);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
@@ -82,21 +102,63 @@ export default function ExploreTab() {
   const loadPortfolios = async () => {
     try {
       setIsLoading(true);
-      const topResponse = await portfolioService.fetchAllPortfolios(1, 1, "0");
-      if (topResponse && topResponse.items && topResponse.items.length > 0) {
-        setTopPortfolios([topResponse.items[0]]);
-      }
+      // Fetch full list and compute top-rated on client-side (ranking.rankPosition === 1)
+      const response = await portfolioService.fetchAllPortfolios(
+        1,
+        10000,
+        PortfolioRankBy.average,
+        undefined,
+        PortfolioSortMode.random,
+        accessToken ?? undefined,
+      );
 
-      const response = await portfolioService.fetchAllPortfolios(1, 10000, "2");
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
+        setTopPortfolios([]);
+        setSponsoredItems([]);
         setIsLoading(false);
         return;
       }
 
-      setFilteredPortfolios(response.items);
-      setAllPortfolios(response.items);
-      setCurrentIndex(0);
+      // Find explicit top (rankPosition === 1)
+      const items = response.items;
+      // Capture sponsored items for rendering
+      setSponsoredItems(response.sponsoredItems || []);
+      let topItem = items.find((p) => p.ranking && p.ranking.rankPosition === 1);
+
+      if (!topItem) {
+        // Fallback: pick the portfolio with smallest rankPosition, or highest totalScore
+        topItem = items.reduce((best: PortfolioMainBlockItem | undefined, cur) => {
+          if (!cur.ranking) return best;
+          if (!best) return cur;
+          const a = cur.ranking?.rankPosition ?? Number.MAX_SAFE_INTEGER;
+          const b = best.ranking?.rankPosition ?? Number.MAX_SAFE_INTEGER;
+          if (a < b) return cur;
+          if (a === b) {
+            const ta = cur.ranking?.totalScore ?? 0;
+            const tb = best.ranking?.totalScore ?? 0;
+            return ta > tb ? cur : best;
+          }
+          return best;
+        }, undefined) ?? items[0];
+      }
+
+      setTopPortfolios(topItem ? [topItem] : []);
+      setFilteredPortfolios(items);
+      setAllPortfolios(items);
+      // build display sequence by interleaving sponsored items every 4 portfolios
+      const merged: DisplayItem[] = [];
+      const spons = (response.sponsoredItems || []).slice();
+      for (let i = 0; i < items.length; i++) {
+        merged.push({ kind: 'portfolio', portfolio: items[i] });
+        if (i % 4 === 3 && spons.length > 0) {
+          merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+        }
+      }
+      // append remaining sponsored
+      while (spons.length > 0) merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+      setDisplayItems(merged);
+      setDisplayIndex(0);
     } catch (error) {
       console.error("❌ Error loading portfolios:", error);
     } finally {
@@ -143,16 +205,27 @@ export default function ExploreTab() {
   };
 
   const handleNext = () => {
-    if (currentIndex < filteredPortfolios.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    if (displayIndex < displayItems.length - 1) {
+      setDisplayIndex(displayIndex + 1);
       setSkillHistory([]);
+      // if moving to a portfolio, also update base currentIndex to match position in filteredPortfolios
+      const next = displayItems[displayIndex + 1];
+      if (next?.kind === 'portfolio') {
+        const dispIdx = displayItems.findIndex(di => di.kind === 'portfolio' && di.portfolio.portfolioId === next.portfolio.portfolioId);
+        if (dispIdx >= 0) setDisplayIndex(dispIdx);
+      }
     }
   };
 
   const handlePrev = () => {
-    if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+    if (displayIndex > 0) {
+      setDisplayIndex(displayIndex - 1);
       setSkillHistory([]);
+      const prev = displayItems[displayIndex - 1];
+      if (prev?.kind === 'portfolio') {
+        const dispIdx = displayItems.findIndex(di => di.kind === 'portfolio' && di.portfolio.portfolioId === prev.portfolio.portfolioId);
+        if (dispIdx >= 0) setDisplayIndex(dispIdx);
+      }
     }
   };
 
@@ -162,16 +235,32 @@ export default function ExploreTab() {
       const response = await portfolioService.fetchAllPortfolios(
         1,
         10000,
-        "2",
+        PortfolioRankBy.average,
         query,
+        PortfolioSortMode.random,
+        accessToken ?? undefined,
       );
       if (!response || !response.items || response.items.length === 0) {
         setFilteredPortfolios([]);
-        setCurrentIndex(0);
+        setDisplayItems([]);
+        setDisplayIndex(0);
         return;
       }
       setFilteredPortfolios(response.items);
-      setCurrentIndex(0);
+
+      // rebuild displayItems from fresh results
+      const items = response.items;
+      const merged: DisplayItem[] = [];
+      const spons = (response.sponsoredItems || []).slice();
+      for (let i = 0; i < items.length; i++) {
+        merged.push({ kind: 'portfolio', portfolio: items[i] });
+        if (i % 4 === 3 && spons.length > 0) {
+          merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+        }
+      }
+      while (spons.length > 0) merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+      setDisplayItems(merged);
+      setDisplayIndex(0);
     } catch (error) {
       console.error("❌ Error searching portfolios:", error);
     } finally {
@@ -184,7 +273,14 @@ export default function ExploreTab() {
     setSearchQuery(query);
     if (query.trim() === "") {
       setFilteredPortfolios(allPortfolios);
-      setCurrentIndex(0);
+      const first = allPortfolios[0];
+      if (first) {
+        const idx = displayItems.findIndex(di => di.kind === 'portfolio' && di.portfolio.portfolioId === first.portfolioId);
+        if (idx >= 0) setDisplayIndex(idx);
+        else setDisplayIndex(0);
+      } else {
+        setDisplayIndex(0);
+      }
     }
   };
 
@@ -197,8 +293,98 @@ export default function ExploreTab() {
   const handleClearSearch = () => {
     setSearchQuery("");
     setFilteredPortfolios(allPortfolios);
-    setCurrentIndex(0);
+    // rebuild display sequence from allPortfolios and existing sponsoredItems
+    const merged: DisplayItem[] = [];
+    const spons = (sponsoredItems || []).slice();
+    for (let i = 0; i < allPortfolios.length; i++) {
+      merged.push({ kind: 'portfolio', portfolio: allPortfolios[i] });
+      if (i % 4 === 3 && spons.length > 0) merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+    }
+    while (spons.length > 0) merged.push({ kind: 'sponsored', sponsored: spons.shift()! });
+    setDisplayItems(merged);
+    setDisplayIndex(0);
   };
+
+  // ----------------------------------------------------------------
+  // Helper: Sponsored mini card
+  // ----------------------------------------------------------------
+  function SponsoredMiniCard({ item }: { item: SponsoredPostDto }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const onScreen = useOnScreen(ref, '0px', 0.5);
+
+    useEffect(() => {
+      if (onScreen && accessToken && !seenSponsoredRef.current.has(item.id)) {
+        void reportSponsoredView(item.id, accessToken).then((ok) => {
+          if (ok) {
+            seenSponsoredRef.current.add(item.id);
+          }
+        });
+      }
+    }, [accessToken, onScreen, item.id]);
+
+    const handleClick = (e: React.MouseEvent) => {
+      if (accessToken && !clickedSponsoredRef.current.has(item.id)) {
+        void reportSponsoredClick(item.id, accessToken).then((ok) => {
+          if (ok) {
+            clickedSponsoredRef.current.add(item.id);
+          }
+        });
+      }
+      if (item.clickThroughUrl) window.open(item.clickThroughUrl, '_blank');
+      e.preventDefault();
+    };
+
+    return (
+      <div ref={ref} className="mb-4">
+        {item.imageUrl ? (
+          <div className="cursor-pointer" onClick={handleClick}>
+            <img src={item.imageUrl} alt={`spon-${item.id}`} className="w-full rounded-lg object-cover" />
+          </div>
+        ) : (
+          <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700">Sponsored</div>
+        )}
+      </div>
+    );
+  }
+
+  function SponsoredDisplayCard({ item }: { item: SponsoredPostDto }) {
+    const ref = useRef<HTMLDivElement | null>(null);
+    const onScreen = useOnScreen(ref, '0px', 0.5);
+
+    useEffect(() => {
+      if (onScreen && accessToken && !seenSponsoredRef.current.has(item.id)) {
+        void reportSponsoredView(item.id, accessToken).then((ok) => {
+          if (ok) {
+            seenSponsoredRef.current.add(item.id);
+          }
+        });
+      }
+    }, [accessToken, onScreen, item.id]);
+
+    const handleClick = (e: React.MouseEvent) => {
+      if (accessToken && !clickedSponsoredRef.current.has(item.id)) {
+        void reportSponsoredClick(item.id, accessToken).then((ok) => {
+          if (ok) {
+            clickedSponsoredRef.current.add(item.id);
+          }
+        });
+      }
+      if (item.clickThroughUrl) window.open(item.clickThroughUrl, '_blank');
+      e.preventDefault();
+    };
+
+    return (
+      <div ref={ref} className="rounded-xl border border-gray-100 bg-white p-4">
+        {item.imageUrl ? (
+          <div className="cursor-pointer" onClick={handleClick}>
+            <img src={item.imageUrl} alt={`spon-${item.id}`} className="w-full rounded-lg object-cover" />
+          </div>
+        ) : (
+          <div className="p-3 bg-gray-50 rounded-lg text-sm text-gray-700">Sponsored</div>
+        )}
+      </div>
+    );
+  }
 
   // ----------------------------------------------------------------
   // JSX
@@ -267,7 +453,7 @@ export default function ExploreTab() {
         <div className="w-full max-w-4xl space-y-6">
           <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/60 border border-slate-100 overflow-hidden flex flex-col min-h-[750px] transition-all">
             <div className="flex-1 p-8 overflow-y-auto no-scrollbar scroll-smooth">
-              {filteredPortfolios.length === 0 ? (
+              {displayItems.length === 0 ? (
                 isLoading ? (
                   <div className="flex flex-col items-center justify-center h-[600px]">
                     <div className="flex justify-center mb-4">
@@ -286,29 +472,34 @@ export default function ExploreTab() {
                 )
               ) : (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  {/* Luôn luôn render trực tiếp PortfolioRenderer */}
-                  <PortfolioRenderer
-                    blocks={
-                      Array.isArray(currentPortfolio?.blocks)
-                        ? currentPortfolio.blocks
-                        : [currentPortfolio?.blocks]
-                    }
-                    ranking={currentPortfolio?.ranking}
-                  />
-                </div>
+                    {/* Render portfolio OR sponsored depending on display item */}
+                    {currentDisplay?.kind === 'portfolio' && currentPortfolio ? (
+                      <PortfolioRenderer
+                        blocks={Array.isArray(currentPortfolio.blocks) ? currentPortfolio.blocks : [currentPortfolio.blocks]}
+                        ranking={currentPortfolio.ranking}
+                      />
+                    ) : currentDisplay?.kind === 'sponsored' ? (
+                      <SponsoredDisplayCard item={currentDisplay.sponsored} />
+                    ) : (
+                      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">Portfolio</h3>
+                        <p className="text-sm text-gray-600">Không có nội dung để hiển thị.</p>
+                      </div>
+                    )}
+                  </div>
               )}
             </div>
           </div>
         </div>
 
         {/* Floating Action Bar */}
-        {filteredPortfolios.length === 0 ? (
+        {displayItems.length === 0 ? (
           <div />
         ) : (
           <div className="fixed bottom-4 z-[100] w-fit px-6 py-2 bg-white/80 backdrop-blur-xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-3xl flex items-center gap-6">
             <button
               onClick={handlePrev}
-              disabled={currentIndex === 0}
+              disabled={displayIndex === 0}
               className="p-3 hover:bg-slate-100 rounded-2xl transition-all disabled:opacity-20 text-slate-800 cursor-pointer"
             >
               <ChevronLeft size={32} strokeWidth={2.5} />
@@ -333,7 +524,7 @@ export default function ExploreTab() {
 
             <button
               onClick={handleNext}
-              disabled={currentIndex === filteredPortfolios.length - 1}
+              disabled={displayIndex === displayItems.length - 1}
               className="p-3 hover:bg-slate-100 rounded-2xl transition-all disabled:opacity-20 text-slate-800 cursor-pointer"
             >
               <ChevronRight size={32} strokeWidth={2.5} />
@@ -382,6 +573,16 @@ export default function ExploreTab() {
           >
             Xem chi tiết
           </button>
+
+          {/* Sponsored Ads */}
+          {sponsoredItems && sponsoredItems.length > 0 && (
+            <div className="mt-6 border-t pt-4">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Sponsored</h3>
+              {sponsoredItems.map((item) => (
+                <SponsoredMiniCard key={`spon-${item.id}`} item={item} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

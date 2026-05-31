@@ -48,7 +48,8 @@ const ProfileCard = ({
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   // Extract data from INTRO block - prioritize user name
-  const introData = data.blocks?.data || {};
+  const _blocks = Array.isArray(data.blocks) ? data.blocks : [data.blocks];
+  const introData = (_blocks[0]?.data) || {};
   const fullName = introData.fullName || introData.name || "Chưa cập nhật tên";
   const title = introData.title || introData.studyField || "Chưa cập nhật chức vụ";
   const email = introData.email || "";

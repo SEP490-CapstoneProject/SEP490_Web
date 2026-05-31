@@ -129,6 +129,9 @@ const SubmissionDetailsPage = lazy(
 const SponsoredPosts = lazy(
   () => import ("./pages/sponsoredPosts/SponsoredPost")
 )
+const CompanyRewardsPage = lazy(
+  () => import("./pages/companyRewards/CompanyRewardsPage"),
+);
 function AppContent() {
   const { accessToken } = useAppSelector((state) => state.auth);
   const profile = useUserProfile(); // Custom hook để lấy thông tin profile người dùng từ Redux store
@@ -289,6 +292,7 @@ function AppContent() {
           <Route path="/notification" element={<NotificationsPage />} />
           <Route path="/my-community-posts" element={<MyCommunityPost />} />
           <Route path="/my-save-posts" element={<MySavePost />} />
+          <Route path="/company-rewards" element={<CompanyRewardsPage />} />
           <Route path="/support-center" element={<SupportCenterPage />} />
           <Route path="/privacy-center" element={<PrivacyCenterPage />} />
           <Route path="/terms-policy" element={<TermsPolicyPage />} />

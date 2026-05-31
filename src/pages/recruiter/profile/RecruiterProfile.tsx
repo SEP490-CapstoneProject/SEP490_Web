@@ -12,7 +12,8 @@ import {
   FileText,
   Briefcase,
   History,
-  Megaphone
+  Megaphone,
+  ShoppingBag,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -141,7 +142,10 @@ export default function RecruiterProfile() {
   };
   const handleSponsoredPostClick = () => {
     navigate("/sponsored-posts");
-  }
+  };
+  const handleRewardsShopClick = () => {
+    navigate("/company-rewards");
+  };
   const handleSupportCenterClick = () => {
     navigate("/support-center");
   };
@@ -207,6 +211,14 @@ export default function RecruiterProfile() {
               </div>
             </div>
 
+            <button
+              onClick={handleRewardsShopClick}
+              className="w-full mb-5 flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
+            >
+              <ShoppingBag size={16} />
+              Đổi thưởng
+            </button>
+
             {/* Introduction */}
             <p className="text-xs text-slate-600 leading-relaxed">
               {displayDescription}
@@ -254,7 +266,13 @@ export default function RecruiterProfile() {
             title="Quảng cáo"
             desc="Quản lý quảng cáo của bạn"
             onClick={handleSponsoredPostClick}
-            />
+          />
+          <ServiceCard
+            icon={<ShoppingBag className="text-blue-600" />}
+            title="Đổi thưởng"
+            desc="Mở shop đổi điểm lấy quảng cáo"
+            onClick={handleRewardsShopClick}
+          />
         </div>
 
         {/* Premium Banner */}
