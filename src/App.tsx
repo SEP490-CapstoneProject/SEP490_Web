@@ -62,9 +62,6 @@ const ApplicationManagement = lazy(
 const CandidateManagement = lazy(
   () => import("./pages/recruiter/recruitment/CandidateManagement"),
 );
-const InterviewSchedule = lazy(
-  () => import("./pages/recruiter/recruitment/InterviewSchedule"),
-);
 const CommunityPost = lazy(() => import("./pages/community/CommunityPost"));
 const CommunityPostDetail = lazy(
   () => import("./pages/community/CommunityPostDetail"),
@@ -126,9 +123,7 @@ const ChallengeDetailRecruiterPage = lazy(
 const SubmissionDetailsPage = lazy(
   () => import("./pages/challenge/SubmissionDetails"),
 );
-const SponsoredPosts = lazy(
-  () => import ("./pages/sponsoredPosts/SponsoredPost")
-)
+
 const CompanyRewardsPage = lazy(
   () => import("./pages/companyRewards/CompanyRewardsPage"),
 );
@@ -226,11 +221,6 @@ function AppContent() {
             path="/candicate-management"
             element={<CandidateManagement />}
           />
-          <Route
-          path ="/sponsored-posts"
-          element={<SponsoredPosts />}
-          />
-          <Route path="/interview-schedule" element={<InterviewSchedule />} />
           <Route path="/company-saved" element={<CompanySavePost />} />
           <Route path="/talent-saved" element={<TalentSavePost />} />
 
