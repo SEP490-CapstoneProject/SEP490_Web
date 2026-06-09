@@ -11,7 +11,6 @@ import {
   MapPin,
   FileText,
   Briefcase,
-  History,
   ShoppingBag,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -136,9 +135,6 @@ export default function RecruiterProfile() {
   const handleInterestClick = () => {
     navigate("/company-saved");
   };
-  const handleTransactionHistoryClick = () => {
-    navigate("/subscription-history");
-  };
   const handleRewardsShopClick = () => {
     navigate("/company-rewards");
   };
@@ -206,7 +202,9 @@ export default function RecruiterProfile() {
                 <span className="truncate">{displayAddress}</span>
               </div>
             </div>
-
+            <div className="flex items-center gap-2 text-[11px] text-slate-600 min-w-0">
+              <span className="truncate">{displayDescription}</span>
+            </div>
             <button
               onClick={handleRewardsShopClick}
               className="w-full mb-5 flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-3 text-sm font-black text-white shadow-lg shadow-blue-500/20 transition-all hover:bg-blue-700 active:scale-[0.98] cursor-pointer"
@@ -216,9 +214,6 @@ export default function RecruiterProfile() {
             </button>
 
             {/* Introduction */}
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {displayDescription}
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -250,12 +245,6 @@ export default function RecruiterProfile() {
             title="Quan tâm"
             desc="Danh sách đã lưu"
             onClick={handleInterestClick}
-          />
-          <ServiceCard
-            icon={<History className="text-blue-600" />}
-            title="Lịch sử giao dịch"
-            desc="Danh sách đã xem"
-            onClick={handleTransactionHistoryClick}
           />
           <ServiceCard
             icon={<ShoppingBag className="text-blue-600" />}
