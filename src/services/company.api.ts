@@ -957,6 +957,8 @@ export const updateCompanyPostFull = async (
       files.forEach((file) => {
         formData.append("files", file);
       });
+    } else {
+      console.log("📡 [updateCompanyPostFull] No new files - preserving existing media");
     }
 
     const fullUrl = buildApiUrl(API_BASE_URLS.company, `/company-posts/${postId}/full`);
@@ -985,7 +987,10 @@ export const updateCompanyPostFull = async (
       if (contentType?.includes("application/json")) {
         try {
           const errorData = await response.json();
-          errorMessage = (errorData as Record<string, unknown>)?.message as string || errorMessage;
+          // Prefer detailed error message, fallback to generic message
+          errorMessage = (errorData as Record<string, unknown>)?.message as string 
+            || (errorData as Record<string, unknown>)?.error as string
+            || errorMessage;
         } catch {
           // If JSON parse fails, use the default error message
         }
