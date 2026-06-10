@@ -12,6 +12,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAppSelector } from "@/store/hook";
 import { fetchCompanyPostDetail, updateCompanyPostFull } from "@/services/company.api";
 import CustomLoading from "@/components/Loading/Loading";
+import { formatErrorForDisplay } from "@/lib/errorTranslator";
 
 type EmploymentType = "fulltime" | "parttime";
 
@@ -57,6 +58,9 @@ export default function EditRecruitmentPost() {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<keyof RecruitmentFormData, string>>
+  >({});
 
   // Load post details on mount
   useEffect(() => {
@@ -112,10 +116,9 @@ export default function EditRecruitmentPost() {
 
     loadPostDetails();
 
+    // Cleanup function
     return () => {
-      if (bannerPreview && !bannerPreview.startsWith("http")) {
-        URL.revokeObjectURL(bannerPreview);
-      }
+      // No cleanup needed since we're managing banner state internally
     };
   }, [postId, accessToken]);
 
@@ -124,12 +127,99 @@ export default function EditRecruitmentPost() {
     (
       event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
     ) => {
+      const value = event.target.value;
       setFormData((prev) => ({
         ...prev,
-        [field]: event.target.value,
+        [field]: value,
       }));
+
+      // Validate field and set error if any
+      const error = validateField(field, value);
+      if (error) {
+        setFieldErrors((prev) => ({
+          ...prev,
+          [field]: error,
+        }));
+      } else {
+        // Clear error if field is now valid
+        setFieldErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        });
+      }
+
       setError(null);
     };
+
+  const validateTitle = (value: string): string | null => {
+    if (!value.trim()) return "Vị trí tuyển dụng bắt buộc";
+    if (value.trim().length < 2)
+      return "Vị trí tuyển dụng phải ít nhất 2 ký tự";
+    return null;
+  };
+
+  const validateSalary = (value: string): string | null => {
+    if (!value.trim()) return "Mức lương bắt buộc";
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || !Number.isInteger(numValue)) {
+      return "Mức lương phải là số nguyên dương";
+    }
+    if (numValue <= 0) return "Mức lương phải lớn hơn 0";
+    return null;
+  };
+
+  const validateExperienceYears = (value: string): string | null => {
+    if (!value.trim()) {
+      return "Số năm kinh nghiệm bắt buộc";
+    }
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || !Number.isInteger(numValue)) {
+      return "Số năm kinh nghiệm phải là số nguyên";
+    }
+    if (numValue < 0) {
+      return "Số năm kinh nghiệm không được nhỏ hơn 0";
+    }
+    if (numValue > 100) {
+      return "Số năm kinh nghiệm không hợp lệ";
+    }
+    return null;
+  };
+
+  const validateQuantity = (value: string): string | null => {
+    if (!value.trim()) {
+      return "Số lượng tuyển bắt buộc";
+    }
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || !Number.isInteger(numValue)) {
+      return "Số lượng tuyển phải là số nguyên";
+    }
+    if (numValue < 0) {
+      return "Số lượng tuyển không được nhỏ hơn 0";
+    }
+    if (numValue === 0) {
+      return "Số lượng tuyển phải lớn hơn 0";
+    }
+    return null;
+  };
+
+  const validateField = (
+    field: keyof RecruitmentFormData,
+    value: string,
+  ): string | null => {
+    switch (field) {
+      case "title":
+        return validateTitle(value);
+      case "salary":
+        return validateSalary(value);
+      case "experienceYears":
+        return validateExperienceYears(value);
+      case "quantity":
+        return validateQuantity(value);
+      default:
+        return null;
+    }
+  };
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -157,26 +247,42 @@ export default function EditRecruitmentPost() {
   };
 
   const validateForm = (): boolean => {
-    if (!formData.title.trim()) {
-      setError("Vui lòng nhập vị trí tuyển dụng");
-      return false;
-    }
+    const errors: Partial<Record<keyof RecruitmentFormData, string>> = {};
+
+    // Validate all required fields
+    const titleError = validateTitle(formData.title);
+    if (titleError) errors.title = titleError;
+
+    const salaryError = validateSalary(formData.salary);
+    if (salaryError) errors.salary = salaryError;
+
+    const experienceError = validateExperienceYears(formData.experienceYears);
+    if (experienceError) errors.experienceYears = experienceError;
+
+    const quantityError = validateQuantity(formData.quantity);
+    if (quantityError) errors.quantity = quantityError;
+
     if (!formData.location.trim()) {
-      setError("Vui lòng nhập địa điểm làm việc");
-      return false;
+      errors.location = "Vui lòng nhập địa điểm làm việc";
     }
-    if (!formData.salary.trim()) {
-      setError("Vui lòng nhập mức lương");
-      return false;
-    }
+
     if (!formData.description.trim()) {
-      setError("Vui lòng nhập mô tả công việc");
-      return false;
+      errors.description = "Vui lòng nhập mô tả công việc";
     }
+
     if (!formData.mandatoryRequirements.trim()) {
-      setError("Vui lòng nhập các yêu cầu bắt buộc");
+      errors.mandatoryRequirements = "Vui lòng nhập các yêu cầu bắt buộc";
+    }
+
+    // If there are any field errors, set them and show error message
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      const firstError = Object.values(errors)[0];
+      setError(firstError || "Vui lòng kiểm tra lại các trường nhập liệu");
       return false;
     }
+
+    setFieldErrors({});
     return true;
   };
 
@@ -187,6 +293,10 @@ export default function EditRecruitmentPost() {
       return;
     }
 
+    await submitPost();
+  };
+
+  const submitPost = async () => {
     try {
       setIsSaving(true);
       setError(null);
@@ -195,7 +305,7 @@ export default function EditRecruitmentPost() {
       console.log("📝 Submitting updated recruitment post:", formData);
 
       // Prepare post data for API
-      const postData: any = {
+      const postData = {
         position: formData.title,
         address: formData.location,
         salary: formData.salary,
@@ -211,20 +321,15 @@ export default function EditRecruitmentPost() {
         benefits: formData.benefits,
       };
 
-      // If there's existing media and no new file being uploaded, include media info to preserve it
-      if (isExistingMedia && !bannerFile && bannerPreview) {
-        console.log("🖼️ Preserving existing media:", bannerPreview);
-        postData.preserveExistingMedia = true;
-        postData.existingMediaUrl = bannerPreview;
-      }
+      // Only prepare files array if a new file was selected
+      // If no new file is selected, don't pass files at all - backend will keep existing media
+      const filesToUpload = bannerFile ? [bannerFile] : undefined;
 
-      // Prepare files array (only include if new file was selected)
-      // If no new file is selected, pass empty array and backend will keep existing media
-      const filesToUpload = bannerFile ? [bannerFile] : [];
+      console.log("📋 Final submission - new file?", bannerFile ? "Yes" : "No (keeping existing)");
 
       // Call API using /full endpoint
       const response = await updateCompanyPostFull(
-        parseInt(postId),
+        parseInt(postId!),
         postData,
         filesToUpload,
         accessToken || undefined
@@ -239,9 +344,8 @@ export default function EditRecruitmentPost() {
         navigate("/recruitment-management");
       }, 1500);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Có lỗi khi cập nhật bài đăng";
-      console.error("❌ Error updating post:", errorMessage);
+      const errorMessage = formatErrorForDisplay(err);
+      console.error("❌ Error updating post:", err);
       setError(errorMessage);
     } finally {
       setIsSaving(false);
@@ -277,8 +381,24 @@ export default function EditRecruitmentPost() {
 
         {/* Error message */}
         {error && (
-          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+          <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-700">Lỗi cập nhật</p>
+                <p className="mt-1 text-sm text-red-600">{error}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  submitPost();
+                }}
+                disabled={isSaving}
+                className="ml-2 shrink-0 rounded px-3 py-1 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                Thử lại
+              </button>
+            </div>
           </div>
         )}
 
@@ -366,9 +486,14 @@ export default function EditRecruitmentPost() {
               value={formData.title}
               onChange={updateField("title")}
               placeholder="VD: Frontend Developer"
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+              className={`w-full rounded-lg border bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none ${
+                fieldErrors.title ? "border-red-500" : "border-slate-300"
+              }`}
               disabled={isSaving}
             />
+            {fieldErrors.title && (
+              <p className="mt-1 text-xs text-red-600">{fieldErrors.title}</p>
+            )}
           </div>
 
           {/* Location */}
@@ -382,9 +507,14 @@ export default function EditRecruitmentPost() {
               value={formData.location}
               onChange={updateField("location")}
               placeholder="VD: TP. Hồ Chí Minh"
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+              className={`w-full rounded-lg border bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none ${
+                fieldErrors.location ? "border-red-500" : "border-slate-300"
+              }`}
               disabled={isSaving}
             />
+            {fieldErrors.location && (
+              <p className="mt-1 text-xs text-red-600">{fieldErrors.location}</p>
+            )}
           </div>
 
           {/* Salary */}
@@ -394,13 +524,19 @@ export default function EditRecruitmentPost() {
               Mức lương
             </label>
             <input
-              type="text"
+              inputMode="numeric"
               value={formData.salary}
               onChange={updateField("salary")}
-              placeholder="VD: 10,000,000 - 15,000,000 VND"
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+              placeholder="VD: 10000000"
+              pattern="\d*"
+              className={`w-full rounded-lg border bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none ${
+                fieldErrors.salary ? "border-red-500" : "border-slate-300"
+              }`}
               disabled={isSaving}
             />
+            {fieldErrors.salary && (
+              <p className="mt-1 text-xs text-red-600">{fieldErrors.salary}</p>
+            )}
           </div>
 
           {/* Experience & Quantity */}
@@ -410,14 +546,19 @@ export default function EditRecruitmentPost() {
                 Kinh nghiệm (năm)
               </label>
               <input
-                type="number"
+                inputMode="numeric"
                 value={formData.experienceYears}
                 onChange={updateField("experienceYears")}
                 placeholder="VD: 2"
-                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-                min="0"
+                pattern="\d*"
+                className={`w-full rounded-lg border bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none ${
+                  fieldErrors.experienceYears ? "border-red-500" : "border-slate-300"
+                }`}
                 disabled={isSaving}
               />
+              {fieldErrors.experienceYears && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.experienceYears}</p>
+              )}
             </div>
             <div>
               <label className="mb-2 block text-sm font-bold text-slate-700">
@@ -425,14 +566,19 @@ export default function EditRecruitmentPost() {
                 Số lượng tuyển
               </label>
               <input
-                type="number"
+                inputMode="numeric"
                 value={formData.quantity}
                 onChange={updateField("quantity")}
                 placeholder="VD: 5"
-                className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-                min="0"
+                pattern="\d*"
+                className={`w-full rounded-lg border bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none ${
+                  fieldErrors.quantity ? "border-red-500" : "border-slate-300"
+                }`}
                 disabled={isSaving}
               />
+              {fieldErrors.quantity && (
+                <p className="mt-1 text-xs text-red-600">{fieldErrors.quantity}</p>
+              )}
             </div>
           </div>
 
@@ -461,10 +607,15 @@ export default function EditRecruitmentPost() {
               value={formData.description}
               onChange={updateField("description")}
               placeholder="Nhập mô tả chi tiết về công việc..."
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+              className={`w-full rounded-lg border bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none ${
+                fieldErrors.description ? "border-red-500" : "border-slate-300"
+              }`}
               rows={4}
               disabled={isSaving}
             />
+            {fieldErrors.description && (
+              <p className="mt-1 text-xs text-red-600">{fieldErrors.description}</p>
+            )}
           </div>
 
           {/* Mandatory Requirements */}
@@ -476,10 +627,15 @@ export default function EditRecruitmentPost() {
               value={formData.mandatoryRequirements}
               onChange={updateField("mandatoryRequirements")}
               placeholder="Nhập các yêu cầu bắt buộc..."
-              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
+              className={`w-full rounded-lg border bg-white px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none ${
+                fieldErrors.mandatoryRequirements ? "border-red-500" : "border-slate-300"
+              }`}
               rows={3}
               disabled={isSaving}
             />
+            {fieldErrors.mandatoryRequirements && (
+              <p className="mt-1 text-xs text-red-600">{fieldErrors.mandatoryRequirements}</p>
+            )}
           </div>
 
           {/* Preferred Requirements */}
