@@ -8,8 +8,10 @@ import {
   FileText,
   ScrollText,
   Briefcase,
-  ChevronDown,
-  ChevronUp,
+  Pencil,
+  X,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 import {
   useEffect,
@@ -176,6 +178,8 @@ import { fetchEmployeeProfile, type EmployeeProfile } from "@/services/profile.a
 import { useAppSelector } from "@/store/hook";
 import { notify } from "@/lib/toast";
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
 type EditorTab = "template" | "component";
 
 type EditableBlockType =
@@ -199,6 +203,8 @@ type EditorSlot = {
 };
 
 type EditorSlotPreset = "default" | "template2" | "template3" | "template4" | "template5";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const BLOCK_LABELS: Record<string, string> = {
   INTRO: "Giới thiệu",
@@ -314,11 +320,19 @@ const BLOCK_VARIANTS: Record<string, string[]> = {
   TYPICALCASE: ["TYPICALCASEONE"],
 };
 
+const TEMPLATE_DISPLAY_NAMES: Record<number, string> = {
+  0: "Hồ sơ xin việc",
+  1: "Hồ sơ xin thực tập",
+  2: "Hồ sơ xin học bổng",
+  3: "Hồ sơ xin học bổng",
+  4: "Hồ sơ xin thực tập",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 const normalizeBlockType = (type: string): string => {
   const upper = type.toUpperCase();
-  if (upper === "EXPERIENCE") {
-    return "EXPERIMENT";
-  }
+  if (upper === "EXPERIENCE") return "EXPERIMENT";
   return upper;
 };
 
@@ -339,16 +353,11 @@ const getPreferredEditableType = (blocks: PortfolioBlock[]): EditableBlockType =
 const sortAndReindexBlocks = (blocks: PortfolioBlock[]): PortfolioBlock[] => {
   return [...blocks]
     .sort((a, b) => a.order - b.order)
-    .map((block, index) => ({
-      ...block,
-      order: index + 1,
-    }));
+    .map((block, index) => ({ ...block, order: index + 1 }));
 };
 
 const deepClone = <T,>(value: T): T => {
-  if (value === null || value === undefined) {
-    return value;
-  }
+  if (value === null || value === undefined) return value;
   try {
     return JSON.parse(JSON.stringify(value)) as T;
   } catch {
@@ -364,9 +373,7 @@ const toRecord = (value: unknown): Record<string, unknown> => {
 };
 
 const toRecordArray = (value: unknown): Record<string, unknown>[] => {
-  if (!Array.isArray(value)) {
-    return [];
-  }
+  if (!Array.isArray(value)) return [];
   return value.map((item) =>
     item && typeof item === "object" && !Array.isArray(item)
       ? { ...(item as Record<string, unknown>) }
@@ -375,12 +382,8 @@ const toRecordArray = (value: unknown): Record<string, unknown>[] => {
 };
 
 const toText = (value: unknown): string => {
-  if (typeof value === "string") {
-    return value;
-  }
-  if (typeof value === "number") {
-    return String(value);
-  }
+  if (typeof value === "string") return value;
+  if (typeof value === "number") return String(value);
   return "";
 };
 
@@ -390,175 +393,162 @@ const createDefaultBlockData = (type: string, variant: string): unknown => {
 
   switch (normalizedType) {
     case "INTRO":
-      return {
-        fullName: "",
-        title: "",
-        description: "",
-        avatar: "",
-        email: "",
-        phone: "",
-      };
-
+      return { fullName: "", title: "", description: "", avatar: "", email: "", phone: "" };
     case "SKILL":
-      if (normalizedVariant === "SKILLTWO") {
-        return {
-          languages: [],
-          frameworks: [],
-          tools: [],
-        };
-      }
+      if (normalizedVariant === "SKILLTWO") return { languages: [], frameworks: [], tools: [] };
       return [];
-
     case "EDUCATION":
-      return [];
-
     case "EXPERIMENT":
-      return [];
-
     case "PROJECT":
-      return [];
-
     case "DIPLOMA":
-      return [];
-
     case "AWARD":
-      return [];
-
     case "ACTIVITIES":
-      return [];
-
-    case "OTHERINFO":
-      if (normalizedVariant === "OTHERONE") {
-        return [];
-      }
-      if (normalizedVariant === "OTHERTWO" || normalizedVariant === "OTHERTHREE" || normalizedVariant === "OTHERFOUR") {
-        return { detail: "" };
-      }
-      if (normalizedVariant === "OTHERFIVE" || normalizedVariant === "OTHERSIX") {
-        return [];
-      }
-      if (normalizedVariant === "OTHERSEVEN") {
-        return [];
-      }
-      if (normalizedVariant === "OTHEREIGHT") {
-        return {
-          title: "",
-          licenseNumber: "",
-          issuer: "",
-          status: "",
-          detail: "",
-        };
-      }
-      return [];
-
     case "REFERENCE":
-      return [];
-
     case "RESEARCH":
-      return [];
-
     case "TEACHING":
-      return [];
-
     case "TYPICALCASE":
       return [];
-
+    case "OTHERINFO":
+      if (normalizedVariant === "OTHERONE") return [];
+      if (["OTHERTWO", "OTHERTHREE", "OTHERFOUR"].includes(normalizedVariant)) return { detail: "" };
+      if (["OTHERFIVE", "OTHERSIX", "OTHERSEVEN"].includes(normalizedVariant)) return [];
+      if (normalizedVariant === "OTHEREIGHT") {
+        return { title: "", licenseNumber: "", issuer: "", status: "", detail: "" };
+      }
+      return [];
     default:
       return {};
   }
 };
 
-const getTemplateName = (
-  templateId: number,
-  templates: PortfolioResponse[],
-  templateNames: Record<number, string>,
-): string => {
-  const index = templates.findIndex((t) => t.portfolioId === templateId);
-  if (index >= 0 && templateNames[index]) {
-    return templateNames[index];
+const isBlockDataEmpty = (data: unknown): boolean => {
+  if (data === null || data === undefined) return true;
+  if (Array.isArray(data)) return data.length === 0;
+  if (typeof data === "object") {
+    const vals = Object.values(data as Record<string, unknown>);
+    return vals.every((v) =>
+      v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0),
+    );
   }
-  return `Template ${templateId}`;
+  return false;
 };
 
 const getOrderedBlockCatalog = (): typeof BLOCK_CATALOG => {
-  const catalog = [...BLOCK_CATALOG];
   const blockOrder: Record<string, number> = {
-    INTRO: 0,
-    SKILL: 1,
-    EDUCATION: 2,
-    EXPERIMENT: 3,
-    PROJECT: 4,
-    DIPLOMA: 5,
-    AWARD: 6,
-    ACTIVITIES: 7,
-    REFERENCE: 8,
-    RESEARCH: 9,
-    TEACHING: 10,
-    TYPICALCASE: 11,
+    INTRO: 0, SKILL: 1, EDUCATION: 2, EXPERIMENT: 3, PROJECT: 4,
+    DIPLOMA: 5, AWARD: 6, ACTIVITIES: 7, REFERENCE: 8,
+    RESEARCH: 9, TEACHING: 10, TYPICALCASE: 11,
   };
-  return catalog.sort((a, b) => {
-    const orderA = blockOrder[a.type] ?? 999;
-    const orderB = blockOrder[b.type] ?? 999;
-    return orderA - orderB;
-  });
+  return [...BLOCK_CATALOG].sort((a, b) => (blockOrder[a.type] ?? 999) - (blockOrder[b.type] ?? 999));
 };
 
-// ─── Slot key helper ────────────────────────────────────────────────────────
 const getSlotKey = (slot: EditorSlot): string =>
   `${slot.type}.${(slot.variant ?? "default").toUpperCase()}`;
 
-// ─── Accordion item component ────────────────────────────────────────────────
-function AccordionItem({
-  title,
-  hasData,
-  defaultOpen = false,
+const getTemplateName = (
+  templateId: number,
+  templates: PortfolioResponse[],
+): string => {
+  const index = templates.findIndex((t) => t.portfolioId === templateId);
+  if (index >= 0 && TEMPLATE_DISPLAY_NAMES[index]) return TEMPLATE_DISPLAY_NAMES[index];
+  return `Template ${templateId}`;
+};
+
+// ─── Inline Edit Wrapper ──────────────────────────────────────────────────────
+
+/**
+ * Wraps a rendered block in the preview with an edit toolbar.
+ * On click, expands an inline editor panel below the block.
+ */
+function InlineEditWrapper({
+  blockId,
+  blockType,
+  blockVariant,
+  isEmpty,
+  isOpen,
+  onToggle,
+  onClear,
   children,
+  editor,
 }: {
-  title: string;
-  hasData: boolean;
-  defaultOpen?: boolean;
+  blockId: number;
+  blockType: string;
+  blockVariant: string;
+  isEmpty: boolean;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClear: () => void;
   children: React.ReactNode;
+  editor: React.ReactNode;
 }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const label = BLOCK_LABELS[normalizeBlockType(blockType)] || blockType;
 
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden bg-white">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
+    <div
+      id={`block-${blockId}`}
+      className={cn(
+        "group relative rounded-2xl border-2 transition-all duration-200",
+        isOpen
+          ? "border-blue-400 shadow-lg shadow-blue-100"
+          : "border-transparent hover:border-blue-200",
+      )}
+    >
+      {/* Block content */}
+      <div
         className={cn(
-          "w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left transition-colors",
-          open ? "bg-blue-50" : "hover:bg-slate-50",
+          "relative cursor-pointer transition-all",
+          isOpen && "pointer-events-none",
         )}
+        onClick={() => !isOpen && onToggle()}
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-semibold text-slate-800 truncate">{title}</span>
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-              hasData
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-slate-100 text-slate-500",
-            )}
-          >
-            {hasData ? "Đã có" : "Trống"}
-          </span>
-        </div>
-        {open ? (
-          <ChevronUp size={15} className="shrink-0 text-slate-400" />
-        ) : (
-          <ChevronDown size={15} className="shrink-0 text-slate-400" />
-        )}
-      </button>
+        {children}
 
-      {open && (
-        <div className="border-t border-slate-100 bg-[#EFF6FF] p-3">
-          {children}
+        {/* Hover edit hint overlay */}
+        {!isOpen && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-blue-500/0 opacity-0 transition-all group-hover:bg-blue-500/5 group-hover:opacity-100">
+            <div className="flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md">
+              <Pencil size={12} />
+              Chỉnh sửa {label}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Edit panel */}
+      {isOpen && (
+        <div className="border-t-2 border-blue-200 bg-blue-50/60 px-4 pb-4 pt-3">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-sm font-bold text-blue-700">
+              Chỉnh sửa: {label}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={onClear}
+                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+                title="Xóa nội dung block này"
+              >
+                <Trash2 size={12} />
+                Xóa nội dung
+              </button>
+              <button
+                type="button"
+                onClick={onToggle}
+                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:bg-slate-50"
+                title="Đóng"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+          {editor}
         </div>
       )}
     </div>
   );
 }
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CreatePortfolio() {
   const navigate = useNavigate();
@@ -567,44 +557,35 @@ export default function CreatePortfolio() {
 
   const { user, accessToken } = useAppSelector((state) => state.auth);
 
-  const TEMPLATE_DISPLAY_NAMES: Record<number, string> = {
-    0: "Hồ sơ xin việc",
-    1: "Hồ sơ xin thực tập",
-    2: "Hồ sơ xin học bổng",
-    3: "Hồ sơ xin học bổng",
-    4: "Hồ sơ xin thực tập",
-  };
-
+  // ── State ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<EditorTab>(isEditMode ? "component" : "template");
   const [templates, setTemplates] = useState<PortfolioResponse[]>([]);
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
   const [activeTemplateId, setActiveTemplateId] = useState<number | null>(null);
   const [allowedBlockTypes, setAllowedBlockTypes] = useState<Set<string>>(new Set());
   const [portfolioName, setPortfolioName] = useState("Hồ sơ mới");
-  const [_activeEditorBlockType, setActiveEditorBlockType] =
-    useState<ExtendedEditorBlockType>("INTRO");
-  const [_activeEditorBlockVariant, setActiveEditorBlockVariant] = useState<string | null>(null);
   const [editorSlotPreset, setEditorSlotPreset] = useState<EditorSlotPreset>("default");
   const [blocks, setBlocks] = useState<PortfolioBlock[]>([]);
-  const [selectedBlockId, setSelectedBlockId] = useState<number | null>(null);
-  const [_showBlockSelector, setShowBlockSelector] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasStartedEditing, setHasStartedEditing] = useState(isEditMode);
 
-  // Track reset keys per slot so each accordion editor resets independently
-  const [slotResetKeys, setSlotResetKeys] = useState<Record<string, number>>({});
+  // Track which block's inline editor is open (by block id)
+  const [openEditorBlockId, setOpenEditorBlockId] = useState<number | null>(null);
 
-  const nextTempBlockIdRef = useRef(-1);
+  // Reset keys per block so editors reinitialise after save
+  const [blockResetKeys, setBlockResetKeys] = useState<Record<number, number>>({});
 
   const [showVariantSelector, setShowVariantSelector] = useState(false);
   const [selectedBlockTypeForVariant, setSelectedBlockTypeForVariant] = useState<string | null>(null);
-  const [hasStartedEditing, setHasStartedEditing] = useState(isEditMode);
+
+  const nextTempBlockIdRef = useRef(-1);
 
   const allocateTempBlockId = (): number => {
-    const nextId = nextTempBlockIdRef.current;
+    const id = nextTempBlockIdRef.current;
     nextTempBlockIdRef.current -= 1;
-    return nextId;
+    return id;
   };
 
   const getUserInfo = useCallback(() => {
@@ -617,14 +598,16 @@ export default function CreatePortfolio() {
     };
   }, [user, employeeProfile]);
 
+  // ── Effects ────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         if (!user || !accessToken) return;
         const profile = await fetchEmployeeProfile(accessToken);
         setEmployeeProfile(profile);
-      } catch (error) {
-        console.warn("⚠️ Failed to fetch employee profile:", error);
+      } catch {
+        // silently ignore
       }
     };
     fetchProfile();
@@ -635,99 +618,71 @@ export default function CreatePortfolio() {
       try {
         setLoading(true);
         setError(null);
-
         const templateData = await portfolioService.fetchPortfolioTemplates();
         setTemplates(templateData.slice(0, 5));
 
         if (isEditMode && id) {
           const portfolioId = Number(id);
-          if (!accessToken) {
-            throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-          }
+          if (!accessToken) throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
           const detail = await portfolioService.fetchPortfolioByIdAPI(portfolioId, accessToken);
-          if (!detail) {
-            throw new Error("Không tìm thấy portfolio cần chỉnh sửa.");
-          }
+          if (!detail) throw new Error("Không tìm thấy portfolio cần chỉnh sửa.");
 
           const sortedBlocks = sortAndReindexBlocks(detail.blocks).map((block) => ({
             ...block,
             data: deepClone(block.data),
           }));
 
-          const preferredType = getPreferredEditableType(sortedBlocks);
-          const preferredBlock =
-            sortedBlocks.find((block) => normalizeBlockType(block.type) === preferredType) ??
-            sortedBlocks[0] ??
-            null;
-
           setBlocks(sortedBlocks);
           setActiveTab("component");
           setEditorSlotPreset("default");
-          setSelectedBlockId(preferredBlock?.id ?? null);
           setPortfolioName(detail.portfolioName || `Portfolio ${portfolioId}`);
           return;
         }
 
         setBlocks([]);
         setEditorSlotPreset("default");
-        setSelectedBlockId(null);
         setPortfolioName("Hồ sơ mới");
         setAllowedBlockTypes(new Set());
         setHasStartedEditing(false);
-      } catch (initializationError) {
-        const message =
-          initializationError instanceof Error
-            ? initializationError.message
-            : "Không thể khởi tạo màn tạo hồ sơ.";
-        setError(message);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Không thể khởi tạo màn tạo hồ sơ.");
       } finally {
         setLoading(false);
       }
     };
-
     initialize();
   }, [id, isEditMode, accessToken]);
 
-  // ─── Derived state ───────────────────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────────
 
   const editorSlots = useMemo<EditorSlot[]>(() => {
-  let baseSlots: EditorSlot[] = [];
+    let baseSlots: EditorSlot[] = [];
+    if (editorSlotPreset === "template2") baseSlots = [...TEMPLATE_TWO_EDITOR_SLOTS];
+    else if (editorSlotPreset === "template3") baseSlots = [...TEMPLATE_THREE_EDITOR_SLOTS];
+    else if (editorSlotPreset === "template4") baseSlots = [...TEMPLATE_FOUR_EDITOR_SLOTS];
+    else if (editorSlotPreset === "template5") baseSlots = [...TEMPLATE_FIVE_EDITOR_SLOTS];
+    else baseSlots = EDITABLE_BLOCK_TYPES.map((type) => ({ type, label: BLOCK_LABELS[type] }));
 
-  // 1. Lấy slots dựa trên Template hiện tại
-  if (editorSlotPreset === "template2") baseSlots = [...TEMPLATE_TWO_EDITOR_SLOTS];
-  else if (editorSlotPreset === "template3") baseSlots = [...TEMPLATE_THREE_EDITOR_SLOTS];
-  else if (editorSlotPreset === "template4") baseSlots = [...TEMPLATE_FOUR_EDITOR_SLOTS];
-  else if (editorSlotPreset === "template5") baseSlots = [...TEMPLATE_FIVE_EDITOR_SLOTS];
-  else {
-    baseSlots = EDITABLE_BLOCK_TYPES.map((type) => ({ type, label: BLOCK_LABELS[type] }));
-  }
+    const extraSlots: EditorSlot[] = [];
+    blocks.forEach((block) => {
+      const inBase = baseSlots.some(
+        (slot) =>
+          slot.type === normalizeBlockType(block.type) &&
+          (!slot.variant || slot.variant?.toUpperCase() === block.variant.toUpperCase()),
+      );
+      if (!inBase) {
+        extraSlots.push({
+          type: normalizeBlockType(block.type) as ExtendedEditorBlockType,
+          variant: block.variant,
+          label: `${BLOCK_LABELS[normalizeBlockType(block.type)]} (Tùy chỉnh)`,
+        });
+      }
+    });
+    return [...baseSlots, ...extraSlots];
+  }, [editorSlotPreset, blocks]);
 
-  // 2. TÌM CÁC BLOCK LẺ: Duyệt qua danh sách `blocks` hiện có, 
-  // nếu có block nào chưa nằm trong `baseSlots` thì thêm nó vào cuối Sidebar.
-  const extraSlots: EditorSlot[] = [];
-  blocks.forEach(block => {
-    const isAlreadyInSlots = baseSlots.some(slot => 
-      slot.type === normalizeBlockType(block.type) && 
-      (!slot.variant || slot.variant?.toUpperCase() === block.variant.toUpperCase())
-    );
+  // ── Block helpers ──────────────────────────────────────────────────────────
 
-    if (!isAlreadyInSlots) {
-      extraSlots.push({
-        type: normalizeBlockType(block.type) as ExtendedEditorBlockType,
-        variant: block.variant,
-        label: `${BLOCK_LABELS[normalizeBlockType(block.type)]} (Tùy chỉnh)`
-      });
-    }
-  });
-
-  return [...baseSlots, ...extraSlots];
-}, [editorSlotPreset, blocks]); // Thêm blocks vào dependency để cập nhật khi thêm block mới
-
-  // ─── Core block helpers ──────────────────────────────────────────────────
-
-  /**
-   * Find the block matching a given slot (type + optional variant).
-   */
   const findBlockForSlot = useCallback(
     (slot: EditorSlot): PortfolioBlock | null => {
       const slotVariant = slot.variant?.toUpperCase();
@@ -742,27 +697,30 @@ export default function CreatePortfolio() {
     [blocks],
   );
 
-  /**
-   * Update block data by block id.
-   */
   const updateBlockDataById = useCallback(
     (blockId: number, updater: (current: unknown) => unknown) => {
-      setBlocks((prevBlocks) =>
-        prevBlocks.map((block) => {
+      setBlocks((prev) =>
+        prev.map((block) => {
           if (block.id !== blockId) return block;
-          const cloned = deepClone(block.data);
-          return { ...block, data: updater(cloned) };
+          return { ...block, data: updater(deepClone(block.data)) };
         }),
       );
     },
     [],
   );
 
-  const resetSlotKey = useCallback((slotKey: string) => {
-    setSlotResetKeys((prev) => ({ ...prev, [slotKey]: (prev[slotKey] ?? 0) + 1 }));
+  const clearBlockData = useCallback((blockId: number) => {
+    setBlocks((prev) =>
+      prev.map((block) => {
+        if (block.id !== blockId) return block;
+        return { ...block, data: createDefaultBlockData(block.type, block.variant) };
+      }),
+    );
+    setBlockResetKeys((prev) => ({ ...prev, [blockId]: (prev[blockId] ?? 0) + 1 }));
+    setOpenEditorBlockId(null);
   }, []);
 
-  // ─── addBlockFromCatalog ─────────────────────────────────────────────────
+  // ── addBlockFromCatalog ────────────────────────────────────────────────────
 
   const addBlockFromCatalog = (type: string, forcedVariant?: string) => {
     const normalizedType = normalizeBlockType(type);
@@ -772,6 +730,22 @@ export default function CreatePortfolio() {
     }
 
     const variant = (forcedVariant?.toUpperCase() || getDefaultVariant(type)).toUpperCase();
+
+    // Check if block already exists for this slot
+    const existingBlock = blocks.find(
+      (b) => normalizeBlockType(b.type) === normalizedType && b.variant.toUpperCase() === variant,
+    );
+
+    if (existingBlock) {
+      // Scroll to and open that block for editing
+      setOpenEditorBlockId(existingBlock.id);
+      setActiveTab("template"); // go to preview to see it
+      setTimeout(() => {
+        document.getElementById(`block-${existingBlock.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
+      return;
+    }
+
     const newBlock: PortfolioBlock = {
       id: allocateTempBlockId(),
       type: normalizedType,
@@ -780,11 +754,17 @@ export default function CreatePortfolio() {
       data: createDefaultBlockData(type, variant),
     };
 
-    setBlocks((prevBlocks) => sortAndReindexBlocks([...prevBlocks, newBlock]));
-    setSelectedBlockId(newBlock.id);
-    setHasStartedEditing(true); // Mark that editing has started
-    setActiveTab("component"); // Auto-switch to component tab
+    setBlocks((prev) => sortAndReindexBlocks([...prev, newBlock]));
+    setHasStartedEditing(true);
+    // Open editor for new block and switch to preview
+    setOpenEditorBlockId(newBlock.id);
+    setActiveTab("template");
+    setTimeout(() => {
+      document.getElementById(`block-${newBlock.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
   };
+
+  // ── Save ───────────────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (!user || !accessToken) {
@@ -792,12 +772,10 @@ export default function CreatePortfolio() {
       navigate("/login");
       return;
     }
-
     if (blocks.length === 0) {
       setError("Bạn cần thêm ít nhất một block trước khi lưu.");
       return;
     }
-
     try {
       setSaving(true);
       setError(null);
@@ -814,43 +792,39 @@ export default function CreatePortfolio() {
         })),
       };
 
-      try {
-        if (isEditMode && id) {
-          const portfolioId = Number(id);
-          await portfolioService.updatePortfolioAPI(portfolioId, portfolioData, accessToken);
-          notify.success("Hồ sơ đã được cập nhật thành công!");
-        } else {
-          await portfolioService.createPortfolioAPI(portfolioData, accessToken);
-          notify.success("Hồ sơ đã được lưu thành công!");
-        }
-
-        portfolioService.clearPortfolioImageFiles();
-        navigate("/portfolioManagement?refresh=true", { replace: true });
-      } catch (apiError) {
-        const errorMessage =
-          apiError instanceof Error ? apiError.message : "Không thể lưu hồ sơ lên máy chủ";
-        setError(errorMessage);
-        notify.error(errorMessage);
+      if (isEditMode && id) {
+        await portfolioService.updatePortfolioAPI(Number(id), portfolioData, accessToken);
+        notify.success("Hồ sơ đã được cập nhật thành công!");
+      } else {
+        await portfolioService.createPortfolioAPI(portfolioData, accessToken);
+        notify.success("Hồ sơ đã được lưu thành công!");
       }
-    } catch (saveError) {
-      const message = saveError instanceof Error ? saveError.message : "Không thể lưu portfolio.";
-      setError(message);
-      notify.error(message);
+
+      portfolioService.clearPortfolioImageFiles();
+      navigate("/portfolioManagement?refresh=true", { replace: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Không thể lưu hồ sơ.";
+      setError(msg);
+      notify.error(msg);
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDeleteBlock = (blockId: number) => {
-    setBlocks((current) => {
-      const updated = current.filter((block) => block.id !== blockId);
-      return sortAndReindexBlocks(updated);
-    });
-    if (selectedBlockId === blockId) {
-      setSelectedBlockId(null);
-      setShowBlockSelector(true);
-    }
+  // ── Scroll to block from component tab ────────────────────────────────────
+
+  const handleScrollToBlock = (block: PortfolioBlock) => {
+    setActiveTab("template");
+    setTimeout(() => {
+      const el = document.getElementById(`block-${block.id}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        setOpenEditorBlockId(block.id);
+      }
+    }, 80);
   };
+
+  // ── Template apply ─────────────────────────────────────────────────────────
 
   const applyTemplate = (template: PortfolioResponse) => {
     const blockTypes = new Set(template.blocks.map((block) => normalizeBlockType(block.type)));
@@ -858,53 +832,31 @@ export default function CreatePortfolio() {
     setBlocks([]);
     setActiveTemplateId(template.portfolioId);
     setHasStartedEditing(true);
+    setOpenEditorBlockId(null);
 
-    const selectedTemplateIndex = templates.findIndex((item) => item.portfolioId === template.portfolioId);
-    const templateVariants = new Set(template.blocks.map((block) => block.variant.toUpperCase()));
+    const selectedIndex = templates.findIndex((t) => t.portfolioId === template.portfolioId);
+    const templateVariants = new Set(template.blocks.map((b) => b.variant.toUpperCase()));
 
-    const hasTemplateTwoVariantSet =
+    const matchesTwo =
       templateVariants.size === TEMPLATE_TWO_REQUIRED_VARIANTS.size &&
       Array.from(TEMPLATE_TWO_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
-    const hasTemplateThreeVariantSet =
+    const matchesThree =
       templateVariants.size === TEMPLATE_THREE_REQUIRED_VARIANTS.size &&
       Array.from(TEMPLATE_THREE_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
-    const hasTemplateFourVariantSet =
+    const matchesFour =
       templateVariants.size === TEMPLATE_FOUR_REQUIRED_VARIANTS.size &&
       Array.from(TEMPLATE_FOUR_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
-    const hasTemplateFiveVariantSet =
+    const matchesFive =
       templateVariants.size === TEMPLATE_FIVE_REQUIRED_VARIANTS.size &&
       Array.from(TEMPLATE_FIVE_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
 
-    const shouldUseTemplateTwoSlots = selectedTemplateIndex === 1 || hasTemplateTwoVariantSet;
-    const shouldUseTemplateThreeSlots = selectedTemplateIndex === 2 || hasTemplateThreeVariantSet;
-    const shouldUseTemplateFourSlots = selectedTemplateIndex === 3 || hasTemplateFourVariantSet;
-    const shouldUseTemplateFiveSlots = selectedTemplateIndex === 4 || hasTemplateFiveVariantSet;
+    if (selectedIndex === 1 || matchesTwo) setEditorSlotPreset("template2");
+    else if (selectedIndex === 2 || matchesThree) setEditorSlotPreset("template3");
+    else if (selectedIndex === 3 || matchesFour) setEditorSlotPreset("template4");
+    else if (selectedIndex === 4 || matchesFive) setEditorSlotPreset("template5");
+    else setEditorSlotPreset("default");
 
-    if (shouldUseTemplateTwoSlots) {
-      setEditorSlotPreset("template2");
-      setActiveEditorBlockType(TEMPLATE_TWO_EDITOR_SLOTS[0].type);
-      setActiveEditorBlockVariant(TEMPLATE_TWO_EDITOR_SLOTS[0].variant ?? null);
-    } else if (shouldUseTemplateThreeSlots) {
-      setEditorSlotPreset("template3");
-      setActiveEditorBlockType(TEMPLATE_THREE_EDITOR_SLOTS[0].type);
-      setActiveEditorBlockVariant(TEMPLATE_THREE_EDITOR_SLOTS[0].variant ?? null);
-    } else if (shouldUseTemplateFourSlots) {
-      setEditorSlotPreset("template4");
-      setActiveEditorBlockType(TEMPLATE_FOUR_EDITOR_SLOTS[0].type);
-      setActiveEditorBlockVariant(TEMPLATE_FOUR_EDITOR_SLOTS[0].variant ?? null);
-    } else if (shouldUseTemplateFiveSlots) {
-      setEditorSlotPreset("template5");
-      setActiveEditorBlockType(TEMPLATE_FIVE_EDITOR_SLOTS[0].type);
-      setActiveEditorBlockVariant(TEMPLATE_FIVE_EDITOR_SLOTS[0].variant ?? null);
-    } else {
-      setEditorSlotPreset("default");
-      setActiveEditorBlockType("INTRO");
-      setActiveEditorBlockVariant(null);
-    }
-
-    setSelectedBlockId(null);
-    setShowBlockSelector(true);
-    setActiveTab("component"); // Auto-switch to component tab when template is selected
+    setActiveTab("component");
   };
 
   const handleVariantSelect = (variant: string) => {
@@ -914,43 +866,21 @@ export default function CreatePortfolio() {
     setShowVariantSelector(false);
   };
 
-  // ─── Per-slot editor renderer ─────────────────────────────────────────────
+  // ── Per-block inline editor renderer ──────────────────────────────────────
 
-  /**
-   * Renders the appropriate Form Editor for a given slot.
-   * All save/cancel callbacks are scoped to the specific block for that slot.
-   */
-  const renderSlotEditor = useCallback(
-    (slot: EditorSlot) => {
-      const slotKey = getSlotKey(slot);
-      const resetKey = slotResetKeys[slotKey] ?? 0;
-      const block = findBlockForSlot(slot);
-      const blockType = slot.type;
-      const variant = (slot.variant ?? block?.variant ?? getDefaultVariant(slot.type)).toUpperCase();
+  const renderBlockEditor = useCallback(
+    (block: PortfolioBlock) => {
+      const blockType = normalizeBlockType(block.type) as ExtendedEditorBlockType;
+      const variant = block.variant.toUpperCase();
+      const rawData = block.data;
+      const resetKey = blockResetKeys[block.id] ?? 0;
+      const editorKey = `editor-${block.id}-${resetKey}`;
 
-      // Data to pass to the editor (from existing block or defaults)
-      const rawData = block?.data ?? createDefaultBlockData(blockType, variant);
-
-      // Scoped updater: creates block if it doesn't exist, then updates data
       const scopedUpdate = (updater: (current: unknown) => unknown) => {
-        if (block) {
-          updateBlockDataById(block.id, updater);
-        } else {
-          // Create the block first, then update
-          const newVariant = variant;
-          const newBlock: PortfolioBlock = {
-            id: allocateTempBlockId(),
-            type: blockType,
-            variant: newVariant,
-            order: blocks.length + 1,
-            data: updater(createDefaultBlockData(blockType, newVariant)),
-          };
-          setBlocks((prev) => sortAndReindexBlocks([...prev, newBlock]));
-        }
+        updateBlockDataById(block.id, updater);
       };
 
       const scopedArrayRemover = (index: number) => {
-        if (!block) return;
         updateBlockDataById(block.id, (current) => {
           const arr = toRecordArray(current);
           return arr.filter((_, i) => i !== index);
@@ -958,24 +888,12 @@ export default function CreatePortfolio() {
       };
 
       const handleSaveWrapper = (updatedData: unknown) => {
-        if (block) {
-          updateBlockDataById(block.id, () => updatedData);
-        } else {
-          const newBlock: PortfolioBlock = {
-            id: allocateTempBlockId(),
-            type: blockType,
-            variant,
-            order: blocks.length + 1,
-            data: updatedData,
-          };
-          setBlocks((prev) => sortAndReindexBlocks([...prev, newBlock]));
-        }
-        resetSlotKey(slotKey);
+        updateBlockDataById(block.id, () => updatedData);
+        setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+        setOpenEditorBlockId(null);
       };
 
-      const editorKey = `${slotKey}-${block?.id ?? "new"}-${resetKey}`;
-
-      // ── INTRO variants ──────────────────────────────────────────────────
+      // ── INTRO ──────────────────────────────────────────────────────────
       if (blockType === "INTRO" && variant === "INTROONE") {
         const initialData = createIntroOneDraft(rawData, getUserInfo());
         return (
@@ -984,16 +902,12 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroOneDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName,
-                name: draft.fullName,
-                studyField: draft.studyField,
-                email: draft.email,
-                phone: draft.phone,
-                description: draft.description,
-                avatar: draft.avatar,
+                fullName: draft.fullName, name: draft.fullName,
+                studyField: draft.studyField, email: draft.email,
+                phone: draft.phone, description: draft.description, avatar: draft.avatar,
               });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1006,20 +920,15 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroTwoDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName,
-                name: draft.fullName,
-                position: draft.position,
-                title: draft.position,
-                yearOfStudy: draft.yearOfStudy,
-                school: draft.school,
-                studyField: draft.studyField,
-                email: draft.email,
-                phoneNumber: draft.phoneNumber,
-                phone: draft.phoneNumber,
+                fullName: draft.fullName, name: draft.fullName,
+                position: draft.position, title: draft.position,
+                yearOfStudy: draft.yearOfStudy, school: draft.school,
+                studyField: draft.studyField, email: draft.email,
+                phoneNumber: draft.phoneNumber, phone: draft.phoneNumber,
                 avatar: draft.avatar,
               });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1032,17 +941,13 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroThreeDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName,
-                name: draft.fullName,
-                school: draft.school,
-                department: draft.department,
-                studyField: draft.studyField,
-                title: draft.studyField,
-                gpa: draft.gpa,
-                avatar: draft.avatar,
+                fullName: draft.fullName, name: draft.fullName,
+                school: draft.school, department: draft.department,
+                studyField: draft.studyField, title: draft.studyField,
+                gpa: draft.gpa, avatar: draft.avatar,
               });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1055,17 +960,13 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroFourDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName,
-                name: draft.fullName,
-                school: draft.school,
-                department: draft.department,
-                studyField: draft.studyField,
-                title: draft.studyField,
-                gpa: draft.gpa,
-                avatar: draft.avatar,
+                fullName: draft.fullName, name: draft.fullName,
+                school: draft.school, department: draft.department,
+                studyField: draft.studyField, title: draft.studyField,
+                gpa: draft.gpa, avatar: draft.avatar,
               });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1078,22 +979,18 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroFiveDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName,
-                name: draft.fullName,
-                school: draft.school,
-                department: draft.department,
-                experience: draft.experience,
-                avatar: draft.avatar,
-                studyField: draft.studyField,
-                title: draft.title,
+                fullName: draft.fullName, name: draft.fullName,
+                school: draft.school, department: draft.department,
+                experience: draft.experience, avatar: draft.avatar,
+                studyField: draft.studyField, title: draft.title,
               });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── SKILL variants ──────────────────────────────────────────────────
+      // ── SKILL ──────────────────────────────────────────────────────────
       if (blockType === "SKILL" && variant === "SKILLONE") {
         const initialData = createSkillOneDraft(rawData);
         return (
@@ -1103,7 +1000,7 @@ export default function CreatePortfolio() {
             onSave={(draft: SkillOneDraft) => {
               handleSaveWrapper(draft.skills.map((name) => ({ name })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1115,13 +1012,9 @@ export default function CreatePortfolio() {
             key={editorKey}
             initialData={initialData}
             onSave={(draft: SkillTwoDraft) => {
-              handleSaveWrapper({
-                languages: draft.languages,
-                frameworks: draft.frameworks,
-                tools: draft.tools,
-              });
+              handleSaveWrapper({ languages: draft.languages, frameworks: draft.frameworks, tools: draft.tools });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1136,18 +1029,16 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [...items, { name: draft.name, description: draft.description }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── EDUCATION variants ──────────────────────────────────────────────
+      // ── EDUCATION ──────────────────────────────────────────────────────
       if (blockType === "EDUCATION" && variant === "EDUCATIONONE") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createEducationOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createEducationOneDraft(item)) : [];
         const initialData = createEducationOneDraft(rawData);
         return (
           <EducationOneEditor
@@ -1158,29 +1049,23 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  schoolName: draft.schoolName,
-                  school: draft.schoolName,
-                  time: draft.time,
-                  department: draft.department,
-                  major: draft.department,
-                  certificate: draft.certificate,
+                  schoolName: draft.schoolName, school: draft.schoolName,
+                  time: draft.time, department: draft.department,
+                  major: draft.department, certificate: draft.certificate,
                   description: draft.description,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: EducationOneDraft[]) => {
               handleSaveWrapper(list.map((e) => ({
-                schoolName: e.schoolName,
-                school: e.schoolName,
-                time: e.time,
-                department: e.department,
-                major: e.department,
-                certificate: e.certificate,
+                schoolName: e.schoolName, school: e.schoolName,
+                time: e.time, department: e.department,
+                major: e.department, certificate: e.certificate,
                 description: e.description,
               })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1195,15 +1080,13 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  time: draft.time,
-                  department: draft.department,
-                  schoolName: draft.schoolName,
-                  description: draft.description,
+                  time: draft.time, department: draft.department,
+                  schoolName: draft.schoolName, description: draft.description,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1219,24 +1102,20 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  time: draft.time,
-                  gpa: draft.gpa,
-                  qualified: draft.qualified,
-                  description: draft.description,
+                  time: draft.time, gpa: draft.gpa,
+                  qualified: draft.qualified, description: draft.description,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── EXPERIMENT ──────────────────────────────────────────────────────
+      // ── EXPERIMENT ─────────────────────────────────────────────────────
       if (blockType === "EXPERIMENT" && variant === "EXPERIMENTONE") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createExperienceOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createExperienceOneDraft(item)) : [];
         const initialData = createExperienceOneDraft(rawData);
         return (
           <ExperienceOneEditor
@@ -1248,29 +1127,22 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  jobName: draft.jobName,
-                  address: draft.address,
-                  startDate,
-                  endDate,
-                  time: draft.time,
-                  description: draft.description,
+                  jobName: draft.jobName, address: draft.address,
+                  startDate, endDate, time: draft.time, description: draft.description,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
             onDeleteItem={scopedArrayRemover}
           />
         );
       }
 
-      // ── PROJECT variants ────────────────────────────────────────────────
+      // ── PROJECT ────────────────────────────────────────────────────────
       if (blockType === "PROJECT" && variant === "PROJECTONE") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createProjectOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createProjectOneDraft(item)) : [];
         const initialData = createProjectOneDraft(rawData);
-
         const buildProjectLinks = (p: ProjectOneDraft) =>
           [
             { type: "github", link: p.githubLink.trim() },
@@ -1290,16 +1162,12 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [{
                   ...(items[0] ?? {}),
-                  image: draft.image,
-                  name: draft.name,
-                  description: draft.description,
-                  role: draft.role,
-                  technology: draft.technology,
-                  projectLinks,
-                  links: projectLinks,
+                  image: draft.image, name: draft.name,
+                  description: draft.description, role: draft.role,
+                  technology: draft.technology, projectLinks, links: projectLinks,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: ProjectOneDraft[]) => {
               handleSaveWrapper(list.map((p) => {
@@ -1307,7 +1175,7 @@ export default function CreatePortfolio() {
                 return { image: p.image, name: p.name, description: p.description, role: p.role, technology: p.technology, projectLinks, links: projectLinks };
               }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1324,17 +1192,14 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  name: draft.name,
-                  action: draft.action,
-                  publisher: draft.publisher,
-                  description: draft.description,
-                  projectLinks: linkItems,
-                  links: linkItems,
+                  name: draft.name, action: draft.action,
+                  publisher: draft.publisher, description: draft.description,
+                  projectLinks: linkItems, links: linkItems,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1351,26 +1216,21 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  name: draft.name,
-                  action: draft.action,
-                  publisher: draft.publisher,
-                  description: draft.description,
-                  projectLinks: linkItems,
-                  links: linkItems,
+                  name: draft.name, action: draft.action,
+                  publisher: draft.publisher, description: draft.description,
+                  projectLinks: linkItems, links: linkItems,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── AWARD ───────────────────────────────────────────────────────────
+      // ── AWARD ──────────────────────────────────────────────────────────
       if (blockType === "AWARD" && variant === "AWARDONE") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createAwardOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createAwardOneDraft(item)) : [];
         const initialData = createAwardOneDraft(rawData);
         return (
           <AwardEditor
@@ -1382,36 +1242,28 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [{
                   ...(items[0] ?? {}),
-                  name: draft.name,
-                  date: draft.date,
-                  time: draft.date,
-                  organization: draft.organization,
-                  issuer: draft.organization,
+                  name: draft.name, date: draft.date, time: draft.date,
+                  organization: draft.organization, issuer: draft.organization,
                   description: draft.description,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: AwardOneDraft[]) => {
               handleSaveWrapper(list.map((a) => ({
-                name: a.name,
-                date: a.date,
-                time: a.date,
-                organization: a.organization,
-                issuer: a.organization,
+                name: a.name, date: a.date, time: a.date,
+                organization: a.organization, issuer: a.organization,
                 description: a.description,
               })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── ACTIVITIES ──────────────────────────────────────────────────────
+      // ── ACTIVITIES ─────────────────────────────────────────────────────
       if (blockType === "ACTIVITIES") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createActivityOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createActivityOneDraft(item)) : [];
         const initialData = createActivityOneDraft(rawData);
         return (
           <ActivityOneEditor
@@ -1423,28 +1275,23 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [{
                   ...(items[0] ?? {}),
-                  name: draft.name,
-                  date: draft.date,
-                  time: draft.date,
+                  name: draft.name, date: draft.date, time: draft.date,
                   description: draft.description,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: ActivityOneDraft[]) => {
               handleSaveWrapper(list.map((a) => ({
-                name: a.name,
-                date: a.date,
-                time: a.date,
-                description: a.description,
+                name: a.name, date: a.date, time: a.date, description: a.description,
               })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── OTHERINFO variants ──────────────────────────────────────────────
+      // ── OTHERINFO ──────────────────────────────────────────────────────
       if (blockType === "OTHERINFO" && variant === "OTHERONE") {
         const initialData = createOtherInfoOneDraft(rawData);
         return (
@@ -1454,12 +1301,12 @@ export default function CreatePortfolio() {
             onSave={(draft: OtherInfoOneDraft) => {
               handleSaveWrapper(draft.interests.map((name) => ({ detail: name })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      if (blockType === "OTHERINFO" && (variant === "OTHERTWO" || variant === "OTHERTHREE" || variant === "OTHERFOUR")) {
+      if (blockType === "OTHERINFO" && ["OTHERTWO", "OTHERTHREE", "OTHERFOUR"].includes(variant)) {
         const initialData = createOtherInfoTwoDraft(rawData);
         return (
           <OtherInfoTwoEditor
@@ -1468,7 +1315,7 @@ export default function CreatePortfolio() {
             onSave={(draft: OtherInfoTwoDraft) => {
               handleSaveWrapper({ detail: draft.detail });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1482,7 +1329,7 @@ export default function CreatePortfolio() {
             onSave={(draft: OtherFiveDraft) => {
               handleSaveWrapper(draft.topics.map((name) => ({ name })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1496,7 +1343,7 @@ export default function CreatePortfolio() {
             onSave={(draft: OtherInfoSixDraft) => {
               handleSaveWrapper(draft.softSkills.map((name) => ({ name })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1512,9 +1359,9 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [...items, { name: draft.name, detail: draft.detail }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
@@ -1528,16 +1375,14 @@ export default function CreatePortfolio() {
             onSave={(draft: OtherEightDraft) => {
               handleSaveWrapper({ ...toRecord(rawData), detail: draft.detail });
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── REFERENCE ───────────────────────────────────────────────────────
+      // ── REFERENCE ──────────────────────────────────────────────────────
       if (blockType === "REFERENCE" && variant === "REFERENCEONE") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createReferenceOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createReferenceOneDraft(item)) : [];
         const initialData = createReferenceOneDraft(rawData);
         return (
           <ReferenceEditor
@@ -1549,36 +1394,28 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [{
                   ...(items[0] ?? {}),
-                  name: draft.name,
-                  position: draft.position,
-                  mail: draft.email,
-                  email: draft.email,
-                  phone: draft.contactInfo,
-                  detail: draft.contactInfo,
+                  name: draft.name, position: draft.position,
+                  mail: draft.email, email: draft.email,
+                  phone: draft.contactInfo, detail: draft.contactInfo,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: ReferenceOneDraft[]) => {
               handleSaveWrapper(list.map((r) => ({
-                name: r.name,
-                position: r.position,
-                mail: r.email,
-                email: r.email,
-                phone: r.contactInfo,
-                detail: r.contactInfo,
+                name: r.name, position: r.position,
+                mail: r.email, email: r.email,
+                phone: r.contactInfo, detail: r.contactInfo,
               })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── DIPLOMA ─────────────────────────────────────────────────────────
+      // ── DIPLOMA ────────────────────────────────────────────────────────
       if (blockType === "DIPLOMA" && variant === "DIPLOMAONE") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createCertificateOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createCertificateOneDraft(item)) : [];
         const initialData = createCertificateOneDraft(rawData);
         return (
           <CertificateOneEditor
@@ -1590,36 +1427,27 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [{
                   ...(items[0] ?? {}),
-                  name: draft.name,
-                  issuer: draft.issuer,
-                  provider: draft.issuer,
-                  year: draft.year,
-                  date: draft.year,
-                  link: draft.link,
+                  name: draft.name, issuer: draft.issuer,
+                  provider: draft.issuer, year: draft.year,
+                  date: draft.year, link: draft.link,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: CertificateOneDraft[]) => {
               handleSaveWrapper(list.map((c) => ({
-                name: c.name,
-                issuer: c.issuer,
-                provider: c.issuer,
-                year: c.year,
-                date: c.year,
-                link: c.link,
+                name: c.name, issuer: c.issuer, provider: c.issuer,
+                year: c.year, date: c.year, link: c.link,
               })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── RESEARCH ────────────────────────────────────────────────────────
+      // ── RESEARCH ───────────────────────────────────────────────────────
       if (blockType === "RESEARCH" && variant === "RESEARCHONE") {
-        const listData = Array.isArray(rawData)
-          ? rawData.map((item) => createResearchOneDraft(item))
-          : [];
+        const listData = Array.isArray(rawData) ? rawData.map((item) => createResearchOneDraft(item)) : [];
         const initialData = createResearchOneDraft(rawData);
         return (
           <ResearchOneEditor
@@ -1630,30 +1458,25 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  name: draft.title,
-                  time: draft.date,
-                  description: draft.conference,
-                  link: draft.link,
+                  name: draft.title, time: draft.date,
+                  description: draft.conference, link: draft.link,
                   conference: draft.conference,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: ResearchOneDraft[]) => {
               handleSaveWrapper(list.map((r) => ({
-                name: r.title,
-                time: r.date,
-                description: r.conference,
-                link: r.link,
-                conference: r.conference,
+                name: r.title, time: r.date, description: r.conference,
+                link: r.link, conference: r.conference,
               })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── TEACHING ────────────────────────────────────────────────────────
+      // ── TEACHING ───────────────────────────────────────────────────────
       if (blockType === "TEACHING" && variant === "TEACHINGONE") {
         const listData = Array.isArray(rawData)
           ? rawData.map((item) => {
@@ -1674,27 +1497,25 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [...items, { subject: draft.subject, teachingplace: draft.teachingplace }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: TeachingOneDraft[]) => {
               handleSaveWrapper(list.map((t) => ({ subject: t.subject, teachingplace: t.teachingplace })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // ── TYPICALCASE ─────────────────────────────────────────────────────
+      // ── TYPICALCASE ────────────────────────────────────────────────────
       if (blockType === "TYPICALCASE" && variant === "TYPICALCASEONE") {
         const listData = Array.isArray(rawData)
           ? rawData.map((item) => {
               if (item && typeof item === "object") {
                 const r = item as Record<string, unknown>;
                 return {
-                  patient: toText(r.patient),
-                  age: toText(r.age),
-                  caseName: toText(r.caseName),
-                  stage: toText(r.stage),
+                  patient: toText(r.patient), age: toText(r.age),
+                  caseName: toText(r.caseName), stage: toText(r.stage),
                   regiment: toText(r.regiment),
                 };
               }
@@ -1710,30 +1531,25 @@ export default function CreatePortfolio() {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
                 return [...items, {
-                  patient: draft.patient,
-                  age: draft.age,
-                  caseName: draft.caseName,
-                  stage: draft.stage,
+                  patient: draft.patient, age: draft.age,
+                  caseName: draft.caseName, stage: draft.stage,
                   regiment: draft.regiment,
                 }];
               });
-              resetSlotKey(slotKey);
+              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
             }}
             onSaveList={(list: TypicalCaseOneDraft[]) => {
               handleSaveWrapper(list.map((c) => ({
-                patient: c.patient,
-                age: c.age,
-                caseName: c.caseName,
-                stage: c.stage,
+                patient: c.patient, age: c.age,
+                caseName: c.caseName, stage: c.stage,
                 regiment: c.regiment,
               })));
             }}
-            onCancel={() => {}}
+            onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      // Fallback: no dedicated editor
       return (
         <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-500">
           Block này chưa có form cấu hình.
@@ -1741,10 +1557,10 @@ export default function CreatePortfolio() {
       );
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [blocks, slotResetKeys, getUserInfo, findBlockForSlot, updateBlockDataById, resetSlotKey],
+    [blocks, blockResetKeys, getUserInfo, updateBlockDataById],
   );
 
-  // ─── Loading state ───────────────────────────────────────────────────────
+  // ── Loading ────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -1757,15 +1573,16 @@ export default function CreatePortfolio() {
     );
   }
 
-  const blockInfoForVariantSelector =
-    selectedBlockTypeForVariant ? getBlockInfo(selectedBlockTypeForVariant) : null;
+  const blockInfoForVariantSelector = selectedBlockTypeForVariant
+    ? getBlockInfo(selectedBlockTypeForVariant)
+    : null;
 
-  // ─── JSX ─────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <>
       <div className="min-h-[calc(100vh-56px)] bg-slate-100">
-        {/* Top bar */}
+        {/* ── Top bar ──────────────────────────────────────────────────────── */}
         <div className="border-b border-slate-200 bg-white px-4 py-3">
           <div className="mx-auto flex w-full items-center justify-between gap-3">
             <div className="flex items-center gap-3">
@@ -1785,7 +1602,7 @@ export default function CreatePortfolio() {
             <div className="flex flex-1 items-center gap-2 min-w-0">
               <input
                 value={portfolioName}
-                onChange={(event) => setPortfolioName(event.target.value)}
+                onChange={(e) => setPortfolioName(e.target.value)}
                 className="h-10 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-700 outline-none focus:border-blue-400"
                 placeholder="Tên hồ sơ"
               />
@@ -1795,12 +1612,14 @@ export default function CreatePortfolio() {
                 onClick={handleSave}
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-blue-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70 whitespace-nowrap"
               >
-                <Save size={16} /> {saving ? "Đang lưu..." : "Lưu hồ sơ"}
+                <Save size={16} />
+                {saving ? "Đang lưu..." : "Lưu hồ sơ"}
               </button>
             </div>
           </div>
         </div>
 
+        {/* ── Body ─────────────────────────────────────────────────────────── */}
         <div className="mx-auto w-full px-3 py-4">
           {error && (
             <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -1808,9 +1627,12 @@ export default function CreatePortfolio() {
             </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)_320px]">
-            {/* ── Left sidebar: template / component catalog ───────────── */}
-            <aside className="rounded-2xl border border-slate-200 bg-white">
+          {/* 2-column layout: sidebar left + preview center */}
+          <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] items-start">
+
+            {/* ── Left sidebar ─────────────────────────────────────────────── */}
+            <aside className="rounded-2xl border border-slate-200 bg-white sticky top-4">
+              {/* Tab bar */}
               <div className="flex border-b border-slate-200">
                 {!isEditMode && (
                   <button
@@ -1830,7 +1652,8 @@ export default function CreatePortfolio() {
                   type="button"
                   onClick={() => setActiveTab("component")}
                   className={cn(
-                    `${isEditMode ? "w-full" : "flex-1"} px-3 py-2.5 text-sm font-semibold transition-colors`,
+                    isEditMode ? "w-full" : "flex-1",
+                    "px-3 py-2.5 text-sm font-semibold transition-colors",
                     activeTab === "component"
                       ? "bg-blue-50 text-blue-600"
                       : "text-slate-500 hover:bg-slate-50",
@@ -1840,39 +1663,90 @@ export default function CreatePortfolio() {
                 </button>
               </div>
 
-              <div className="max-h-[calc(100vh-220px)] overflow-y-auto p-3">
+              <div className={cn(
+                "p-3",
+                activeTab === "component" && "max-h-[calc(100vh-160px)] overflow-y-auto",
+              )}>
+
+                {/* ── Template tab ─────────────────────────────────────────── */}
                 {!isEditMode && activeTab === "template" && (
-                  <div className="space-y-3">
-                    {templates.map((template) => (
-                      <button
-                        key={template.portfolioId}
-                        type="button"
-                        onClick={() => applyTemplate(template)}
-                        className={cn(
-                          "w-full overflow-hidden rounded-xl border text-left transition-colors",
-                          activeTemplateId === template.portfolioId
-                            ? "border-blue-400 bg-blue-50"
-                            : "border-slate-200 hover:border-blue-300",
-                        )}
-                      >
-                        <img
-                          src={TemplatePreviewImage}
-                          alt={getTemplateName(template.portfolioId, templates, TEMPLATE_DISPLAY_NAMES)}
-                          className="h-44 w-full object-cover"
-                        />
-                        <div className="px-3 py-2">
-                          <p className="text-sm font-semibold text-slate-800">
-                            {getTemplateName(template.portfolioId, templates, TEMPLATE_DISPLAY_NAMES)}
-                          </p>
-                          <p className="text-xs text-slate-500">{template.blocks.length} block(s)</p>
-                        </div>
-                      </button>
-                    ))}
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
+                    <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-blue-100">
+                      <Sparkles size={18} className="text-blue-500" />
+                    </div>
+                    <p className="text-sm font-semibold text-slate-700">Các mẫu thiết kế mới</p>
+                    <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
+                      Sẽ xuất hiện trong tương lai.<br />Hãy theo dõi cập nhật!
+                    </p>
                   </div>
                 )}
 
+                {/* ── Component tab ─────────────────────────────────────────── */}
                 {activeTab === "component" && (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
+                    {/* Header hint */}
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                      Bấm để đến block trên preview →
+                    </p>
+
+                    {/* Existing blocks (navigate to preview) */}
+                    {blocks.length > 0 && (
+                      <div className="mb-3 space-y-1.5">
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-blue-500">
+                          Blocks trong hồ sơ ({blocks.length})
+                        </p>
+                        {blocks.map((block) => {
+                          const blockInfo = getBlockInfo(normalizeBlockType(block.type));
+                          const BlockIcon = blockInfo?.icon;
+                          const empty = isBlockDataEmpty(block.data);
+                          return (
+                            <button
+                              key={block.id}
+                              type="button"
+                              onClick={() => handleScrollToBlock(block)}
+                              className={cn(
+                                "w-full rounded-xl border px-3 py-2.5 text-left transition-all flex items-center gap-2.5",
+                                openEditorBlockId === block.id
+                                  ? "border-blue-400 bg-blue-50"
+                                  : "border-slate-200 hover:border-blue-300 hover:bg-blue-50",
+                              )}
+                            >
+                              <div className={cn(
+                                "rounded-lg p-1.5 shrink-0",
+                                empty ? "bg-slate-100 text-slate-400" : "bg-blue-100 text-blue-600",
+                              )}>
+                                {BlockIcon ? <BlockIcon size={14} /> : <Layers size={14} />}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-semibold text-slate-800 truncate">
+                                  {blockInfo?.label || BLOCK_LABELS[normalizeBlockType(block.type)] || block.type}
+                                </p>
+                                <p className="text-[10px] text-slate-400 truncate">{block.variant}</p>
+                              </div>
+                              <span className={cn(
+                                "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                                empty
+                                  ? "bg-slate-100 text-slate-500"
+                                  : "bg-emerald-100 text-emerald-700",
+                              )}>
+                                {empty ? "Trống" : "Đã có"}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Divider */}
+                    {blocks.length > 0 && (
+                      <div className="border-t border-slate-200 my-3" />
+                    )}
+
+                    {/* Add new blocks */}
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+                      Thêm block mới
+                    </p>
+
                     {getOrderedBlockCatalog().map((blockItem) => {
                       const isAllowed =
                         isEditMode || !activeTemplateId || allowedBlockTypes.has(blockItem.type);
@@ -1883,6 +1757,7 @@ export default function CreatePortfolio() {
                           <button
                             type="button"
                             onClick={() => {
+                              if (!isAllowed) return;
                               if (blockItem.type === "OTHERINFO") {
                                 addBlockFromCatalog("OTHERINFO", "OTHERONE");
                               } else {
@@ -1891,11 +1766,12 @@ export default function CreatePortfolio() {
                               }
                             }}
                             disabled={!isAllowed}
-                            className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3 ${
+                            className={cn(
+                              "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
                               isAllowed
                                 ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed"
-                            }`}
+                                : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
+                            )}
                           >
                             <div className="mt-0.5 rounded-lg bg-slate-100 p-1.5 text-slate-600">
                               <BlockIcon size={16} />
@@ -1906,6 +1782,7 @@ export default function CreatePortfolio() {
                             </div>
                           </button>
 
+                          {/* OTHERINFO sub-variants after REFERENCE */}
                           {blockItem.type === "REFERENCE" && (
                             <>
                               {[
@@ -1921,11 +1798,12 @@ export default function CreatePortfolio() {
                                     type="button"
                                     onClick={() => otherAllowed && addBlockFromCatalog("OTHERINFO", variant)}
                                     disabled={!otherAllowed}
-                                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3 ${
+                                    className={cn(
+                                      "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
                                       otherAllowed
                                         ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                        : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed"
-                                    }`}
+                                        : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
+                                    )}
                                   >
                                     <div className={`mt-0.5 rounded-lg bg-${color}-100 p-1.5 text-${color}-600`}>
                                       <Icon size={16} />
@@ -1953,11 +1831,12 @@ export default function CreatePortfolio() {
                                     type="button"
                                     onClick={() => otherAllowed && addBlockFromCatalog("OTHERINFO", variant)}
                                     disabled={!otherAllowed}
-                                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3 ${
+                                    className={cn(
+                                      "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
                                       otherAllowed
                                         ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                        : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed"
-                                    }`}
+                                        : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
+                                    )}
                                   >
                                     <div className={`mt-0.5 rounded-lg bg-${color}-100 p-1.5 text-${color}-600`}>
                                       <Icon size={16} />
@@ -1972,31 +1851,30 @@ export default function CreatePortfolio() {
                             </>
                           )}
 
-                          {blockItem.type === "TYPICALCASE" && (
-                            (() => {
-                              const otherAllowed = isEditMode || !activeTemplateId || allowedBlockTypes.has("OTHERINFO");
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={() => otherAllowed && addBlockFromCatalog("OTHERINFO", "OTHEREIGHT")}
-                                  disabled={!otherAllowed}
-                                  className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3 ${
-                                    otherAllowed
-                                      ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                      : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed"
-                                  }`}
-                                >
-                                  <div className="mt-0.5 rounded-lg bg-orange-100 p-1.5 text-orange-600">
-                                    <ScrollText size={16} />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-semibold text-slate-800">Giấy phép hành nghề</p>
-                                    <p className="mt-0.5 text-xs text-slate-500">Số hiệu, nơi cấp, ngày cấp...</p>
-                                  </div>
-                                </button>
-                              );
-                            })()
-                          )}
+                          {blockItem.type === "TYPICALCASE" && (() => {
+                            const otherAllowed = isEditMode || !activeTemplateId || allowedBlockTypes.has("OTHERINFO");
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => otherAllowed && addBlockFromCatalog("OTHERINFO", "OTHEREIGHT")}
+                                disabled={!otherAllowed}
+                                className={cn(
+                                  "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
+                                  otherAllowed
+                                    ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                                    : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
+                                )}
+                              >
+                                <div className="mt-0.5 rounded-lg bg-orange-100 p-1.5 text-orange-600">
+                                  <ScrollText size={16} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-semibold text-slate-800">Giấy phép hành nghề</p>
+                                  <p className="mt-0.5 text-xs text-slate-500">Số hiệu, nơi cấp, ngày cấp...</p>
+                                </div>
+                              </button>
+                            );
+                          })()}
                         </div>
                       );
                     })}
@@ -2005,155 +1883,92 @@ export default function CreatePortfolio() {
               </div>
             </aside>
 
-            {/* ── Center: preview ──────────────────────────────────────── */}
-            <main className="rounded-2xl border border-slate-200 bg-white p-4">
-              {activeTab === "template" ? (
-                <>
-                  {activeTemplateId === null ? (
-                    <div className="flex min-h-[70vh] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center">
-                      <div className="max-w-sm px-6">
-                        <h2 className="text-lg font-bold text-slate-700">Chọn template</h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                          Bấm chọn một template ở bên trái để xem thông tin chi tiết.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <h2 className="text-lg font-bold text-slate-900">
-                          {getTemplateName(activeTemplateId, templates, TEMPLATE_DISPLAY_NAMES)}
-                        </h2>
-                        <p className="mt-2 text-sm text-slate-600">
-                          Loại block được hỗ trợ ({allowedBlockTypes.size}):
-                        </p>
-                        <ul className="mt-3 space-y-2">
-                          {Array.from(allowedBlockTypes).map((blockType) => (
-                            <li
-                              key={blockType}
-                              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                            >
-                              <span className="font-semibold text-slate-700">
-                                {BLOCK_LABELS[blockType] || blockType}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("component")}
-                        className="w-full rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-                      >
-                        Chỉnh sửa template này
-                      </button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  {blocks.length === 0 ? (
-                    <div className="flex min-h-[70vh] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center">
-                      <div className="max-w-sm px-6">
-                        <h2 className="text-lg font-bold text-slate-700">Portfolio đang trống</h2>
-                        <p className="mt-2 text-sm text-slate-500">
-                          Chọn một template ở bên trái hoặc thêm block thủ công trong tab Thành phần để bắt đầu.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="mx-auto max-w-2xl">
-                      <PortfolioRenderer blocks={blocks} />
-                    </div>
-                  )}
-                </>
-              )}
-            </main>
+            {/* ── Center preview (full width, inline editing) ──────────────── */}
+            <main className="rounded-2xl border border-slate-200 bg-white">
 
-            {/* ── Right sidebar: accordion editors ────────────────────── */}
-            <aside className="rounded-2xl border border-slate-200 bg-slate-50">
-              {/* Header */}
-              <div className="border-b border-slate-200 bg-white px-3 py-2.5 rounded-t-2xl">
-                <h2 className="text-sm font-bold text-slate-900">Chỉnh sửa nội dung</h2>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  {editorSlotPreset !== "default"
-                    ? `${editorSlots.length} mục theo template`
-                    : "Mở từng mục để nhập liệu"}
-                </p>
-              </div>
-
-              {/* Blocks added outside of template slots (edit mode) */}
-              {isEditMode && blocks.length > 0 && (
-                <div className="border-b border-slate-200 bg-white px-3 py-2">
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                    Blocks hiện tại ({blocks.length})
-                  </p>
-                  <div className="flex flex-col gap-1">
-                    {blocks.map((block) => {
-                      const blockInfo = getBlockInfo(normalizeBlockType(block.type));
-                      const BlockIcon = blockInfo?.icon;
-                      return (
-                        <div
-                          key={block.id}
-                          className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs"
-                        >
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {BlockIcon && <BlockIcon size={13} className="text-slate-500 shrink-0" />}
-                            <span className="font-semibold text-slate-700 truncate">
-                              {blockInfo?.label || block.type}
-                            </span>
-                            <span className="text-[10px] text-slate-400 truncate">
-                              {block.variant}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteBlock(block.id)}
-                            className="shrink-0 rounded p-0.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      );
-                    })}
+              {/* Inline editing hint bar */}
+              {blocks.length > 0 && (
+                <div className="flex items-center gap-2 border-b border-slate-100 bg-blue-50/60 px-4 py-2.5">
+                  <div className="rounded-full bg-blue-100 p-1">
+                    <Pencil size={12} className="text-blue-600" />
                   </div>
+                  <p className="text-xs text-blue-700 font-medium">
+                    Bấm vào bất kỳ phần nào trên hồ sơ để chỉnh sửa trực tiếp
+                  </p>
                 </div>
               )}
 
-              {/* Accordion editors */}
-              <div className="max-h-[calc(100vh-180px)] overflow-y-auto p-3 space-y-2">
-                {!hasStartedEditing ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-6 text-center">
-                    <p className="text-sm font-medium text-slate-600 mb-1">Bắt đầu tạo hồ sơ</p>
-                    <p className="text-sm text-slate-500">
-                      Chọn một template ở tab <span className="font-semibold">"Thiết kế mẫu"</span> hoặc thêm thành phần từ tab <span className="font-semibold">"Thành phần"</span>
-                    </p>
-                  </div>
-                ) : editorSlots.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-slate-300 bg-white px-3 py-6 text-center">
-                    <p className="text-sm text-slate-500">
-                      Không có thành phần nào. Thêm thành phần từ tab bên trái.
-                    </p>
+              <div className="p-4">
+                {blocks.length === 0 ? (
+                  <div className="flex min-h-[70vh] items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 text-center">
+                    <div className="max-w-sm px-6">
+                      {!hasStartedEditing ? (
+                        <>
+                          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100">
+                            <Layers size={22} className="text-blue-500" />
+                          </div>
+                          <h2 className="text-lg font-bold text-slate-700">Bắt đầu tạo hồ sơ</h2>
+                          <p className="mt-2 text-sm text-slate-500">
+                            Chọn một template ở tab{" "}
+                            <span className="font-semibold text-slate-700">"Thiết kế mẫu"</span>{" "}
+                            hoặc thêm thành phần từ tab{" "}
+                            <span className="font-semibold text-slate-700">"Thành phần"</span>
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <h2 className="text-lg font-bold text-slate-700">Portfolio đang trống</h2>
+                          <p className="mt-2 text-sm text-slate-500">
+                            Thêm block từ tab "Thành phần" ở bên trái để bắt đầu.
+                          </p>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ) : (
-                  editorSlots.map((slot, index) => {
-                    const slotKey = getSlotKey(slot);
-                    const hasBlock = Boolean(findBlockForSlot(slot));
+                  /* Render each block wrapped in InlineEditWrapper */
+                  <div className="mx-auto max-w-2xl space-y-2">
+                    {blocks.map((block) => {
+                      const isEmpty = isBlockDataEmpty(block.data);
+                      const isOpen = openEditorBlockId === block.id;
+                      const editor = renderBlockEditor(block);
 
-                    return (
-                      <AccordionItem
-                        key={slotKey}
-                        title={slot.label}
-                        hasData={hasBlock}
-                        defaultOpen={index === 0}
-                      >
-                        {renderSlotEditor(slot)}
-                      </AccordionItem>
-                    );
-                  })
+                      return (
+                        <InlineEditWrapper
+                          key={block.id}
+                          blockId={block.id}
+                          blockType={block.type}
+                          blockVariant={block.variant}
+                          isEmpty={isEmpty}
+                          isOpen={isOpen}
+                          onToggle={() =>
+                            setOpenEditorBlockId((prev) => (prev === block.id ? null : block.id))
+                          }
+                          onClear={() => clearBlockData(block.id)}
+                          editor={editor}
+                        >
+                          {/* Empty placeholder shown when block has no data */}
+                          {isEmpty ? (
+                            <div className="flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center">
+                              <div>
+                                <p className="text-sm font-semibold text-slate-500">
+                                  {BLOCK_LABELS[normalizeBlockType(block.type)] || block.type}
+                                </p>
+                                <p className="mt-0.5 text-xs text-slate-400">
+                                  Chưa có nội dung — bấm để nhập
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <PortfolioRenderer blocks={[block]} />
+                          )}
+                        </InlineEditWrapper>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
-            </aside>
+            </main>
           </div>
         </div>
       </div>
