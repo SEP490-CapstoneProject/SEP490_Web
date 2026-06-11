@@ -50,6 +50,7 @@ export default function ExperienceOneEditor({
       time: "",
       description: "",
     });
+    setEditingIndex(null);
   };
 
   const handleEditItem = (index: number) => {

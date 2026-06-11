@@ -99,6 +99,12 @@ export default function ProjectOneEditor({
       appLink: "",
       websiteLink: "",
     });
+    // Clear image states
+    setProjectImageFile(null);
+    setIsDraggingImage(false);
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
 
     if (onSaveList) {
       onSaveList(updatedList);

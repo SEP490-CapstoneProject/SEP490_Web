@@ -15,13 +15,11 @@ import {
 } from "lucide-react";
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   useCallback,
 } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import TemplatePreviewImage from "@/assets/testImage/testImage.png";
 import { BLOCK_CATALOG, getBlockInfo } from "./blockCatalog";
 import VariantSelector from "./VariantSelector";
 import ActivityOneEditor from "./editor/ActivityOneEditor";
@@ -171,7 +169,6 @@ import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
 import { cn } from "@/lib/utils";
 import {
   PortfolioBlock,
-  PortfolioResponse,
   portfolioService,
 } from "@/services/portfolio.api";
 import { fetchEmployeeProfile, type EmployeeProfile } from "@/services/profile.api";
@@ -196,13 +193,6 @@ type EditableBlockType =
 
 type ExtendedEditorBlockType = EditableBlockType | "RESEARCH" | "TEACHING" | "TYPICALCASE";
 
-type EditorSlot = {
-  type: ExtendedEditorBlockType;
-  label: string;
-  variant?: string;
-};
-
-type EditorSlotPreset = "default" | "template2" | "template3" | "template4" | "template5";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -222,78 +212,7 @@ const BLOCK_LABELS: Record<string, string> = {
   TYPICALCASE: "Ca điển hình",
 };
 
-const EDITABLE_BLOCK_TYPES: EditableBlockType[] = [
-  "INTRO",
-  "SKILL",
-  "EDUCATION",
-  "EXPERIMENT",
-  "PROJECT",
-  "AWARD",
-  "ACTIVITIES",
-  "OTHERINFO",
-  "REFERENCE",
-  "DIPLOMA",
-];
 
-const TEMPLATE_TWO_EDITOR_SLOTS: EditorSlot[] = [
-  { type: "INTRO", variant: "INTROTWO", label: "Giới thiệu" },
-  { type: "OTHERINFO", variant: "OTHERTWO", label: "Mục tiêu nghề nghiệp" },
-  { type: "SKILL", variant: "SKILLTWO", label: "Kỹ năng nền tảng" },
-  { type: "PROJECT", variant: "PROJECTONE", label: "Dự án nổi bật" },
-  { type: "EDUCATION", variant: "EDUCATIONONE", label: "Học vấn" },
-  { type: "ACTIVITIES", variant: "ACTIVITYTWO", label: "Hoạt động ngoại khóa" },
-  { type: "DIPLOMA", variant: "DIPLOMAONE", label: "Chứng chỉ" },
-  { type: "OTHERINFO", variant: "OTHERSIX", label: "Kỹ năng mềm" },
-  { type: "OTHERINFO", variant: "OTHERONE", label: "Sở thích cá nhân" },
-  { type: "REFERENCE", variant: "REFERENCEONE", label: "Người giới thiệu" },
-];
-
-const TEMPLATE_TWO_REQUIRED_VARIANTS = new Set(
-  TEMPLATE_TWO_EDITOR_SLOTS.map((slot) => slot.variant?.toUpperCase()).filter(Boolean) as string[],
-);
-
-const TEMPLATE_THREE_EDITOR_SLOTS: EditorSlot[] = [
-  { type: "INTRO", variant: "INTROTHREE", label: "Giới thiệu" },
-  { type: "OTHERINFO", variant: "OTHERTHREE", label: "Tầm nhìn và động lực" },
-  { type: "EDUCATION", variant: "EDUCATIONTHREE", label: "Thành tích học tập" },
-  { type: "PROJECT", variant: "PROJECTTWO", label: "Dự án nghiên cứu" },
-  { type: "ACTIVITIES", variant: "ACTIVITYONE", label: "Hoạt động" },
-  { type: "DIPLOMA", variant: "DIPLOMAONE", label: "Chứng chỉ" },
-  { type: "REFERENCE", variant: "REFERENCEONE", label: "Người giới thiệu" },
-  { type: "OTHERINFO", variant: "OTHERSEVEN", label: "Tài liệu bổ sung" },
-];
-
-const TEMPLATE_THREE_REQUIRED_VARIANTS = new Set(
-  TEMPLATE_THREE_EDITOR_SLOTS.map((slot) => slot.variant?.toUpperCase()).filter(Boolean) as string[],
-);
-
-const TEMPLATE_FOUR_EDITOR_SLOTS: EditorSlot[] = [
-  { type: "INTRO", variant: "INTROFOUR", label: "Giới thiệu" },
-  { type: "OTHERINFO", variant: "OTHERFOUR", label: "Giới thiệu chuyên môn" },
-  { type: "OTHERINFO", variant: "OTHERFIVE", label: "Lĩnh vực nghiên cứu" },
-  { type: "RESEARCH", variant: "RESEARCHONE", label: "Công bố khoa học" },
-  { type: "PROJECT", variant: "PROJECTTHREE", label: "Dự án & đề tài" },
-  { type: "EDUCATION", variant: "EDUCATIONTWO", label: "Quá trình đào tạo" },
-  { type: "TEACHING", variant: "TEACHINGONE", label: "Giảng dạy" },
-];
-
-const TEMPLATE_FOUR_REQUIRED_VARIANTS = new Set(
-  TEMPLATE_FOUR_EDITOR_SLOTS.map((slot) => slot.variant?.toUpperCase()).filter(Boolean) as string[],
-);
-
-const TEMPLATE_FIVE_EDITOR_SLOTS: EditorSlot[] = [
-  { type: "INTRO", variant: "INTROFIVE", label: "Giới thiệu" },
-  { type: "OTHERINFO", variant: "OTHERFOUR", label: "Giới thiệu chuyên môn" },
-  { type: "SKILL", variant: "SKILLTHREE", label: "Kỹ năng lâm sàn" },
-  { type: "EXPERIMENT", variant: "EXPERIMENTONE", label: "Kinh nghiệm làm việc" },
-  { type: "TYPICALCASE", variant: "TYPICALCASEONE", label: "Trường hợp điển hình" },
-  { type: "DIPLOMA", variant: "DIPLOMAONE", label: "Chứng chỉ" },
-  { type: "OTHERINFO", variant: "OTHEREIGHT", label: "Giấy phép hành nghề" },
-];
-
-const TEMPLATE_FIVE_REQUIRED_VARIANTS = new Set(
-  TEMPLATE_FIVE_EDITOR_SLOTS.map((slot) => slot.variant?.toUpperCase()).filter(Boolean) as string[],
-);
 
 const BLOCK_VARIANTS: Record<string, string[]> = {
   INTRO: ["INTROONE", "INTROTWO", "INTROTHREE", "INTROFOUR", "INTROFIVE"],
@@ -320,14 +239,6 @@ const BLOCK_VARIANTS: Record<string, string[]> = {
   TYPICALCASE: ["TYPICALCASEONE"],
 };
 
-const TEMPLATE_DISPLAY_NAMES: Record<number, string> = {
-  0: "Hồ sơ xin việc",
-  1: "Hồ sơ xin thực tập",
-  2: "Hồ sơ xin học bổng",
-  3: "Hồ sơ xin học bổng",
-  4: "Hồ sơ xin thực tập",
-};
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const normalizeBlockType = (type: string): string => {
@@ -339,15 +250,6 @@ const normalizeBlockType = (type: string): string => {
 const getDefaultVariant = (type: string): string => {
   const normalizedType = normalizeBlockType(type);
   return BLOCK_VARIANTS[normalizedType]?.[0] ?? "INTROONE";
-};
-
-const getPreferredEditableType = (blocks: PortfolioBlock[]): EditableBlockType => {
-  for (const type of EDITABLE_BLOCK_TYPES) {
-    if (blocks.some((block) => normalizeBlockType(block.type) === type)) {
-      return type;
-    }
-  }
-  return "INTRO";
 };
 
 const sortAndReindexBlocks = (blocks: PortfolioBlock[]): PortfolioBlock[] => {
@@ -442,29 +344,80 @@ const getOrderedBlockCatalog = (): typeof BLOCK_CATALOG => {
   return [...BLOCK_CATALOG].sort((a, b) => (blockOrder[a.type] ?? 999) - (blockOrder[b.type] ?? 999));
 };
 
-const getSlotKey = (slot: EditorSlot): string =>
-  `${slot.type}.${(slot.variant ?? "default").toUpperCase()}`;
 
-const getTemplateName = (
-  templateId: number,
-  templates: PortfolioResponse[],
-): string => {
-  const index = templates.findIndex((t) => t.portfolioId === templateId);
-  if (index >= 0 && TEMPLATE_DISPLAY_NAMES[index]) return TEMPLATE_DISPLAY_NAMES[index];
-  return `Template ${templateId}`;
-};
+// ─── Global borderless editor styles (injected once) ─────────────────────────
+//
+// Any editor component rendered inside `.inline-editor-mode` will have its
+// inputs/textareas/selects overridden to borderless bottom-line style so they
+// blend with the portfolio content. We inject a <style> tag once at module level.
+//
+const INLINE_EDITOR_STYLE = `
+.inline-editor-mode input[type="text"],
+.inline-editor-mode input[type="email"],
+.inline-editor-mode input[type="tel"],
+.inline-editor-mode input[type="url"],
+.inline-editor-mode input[type="number"],
+.inline-editor-mode input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="date"]),
+.inline-editor-mode textarea {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1.5px solid #cbd5e1 !important;
+  border-radius: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s;
+}
+.inline-editor-mode input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not([type="date"]):focus,
+.inline-editor-mode textarea:focus {
+  border-bottom-color: #3b82f6 !important;
+  box-shadow: none !important;
+}
+.inline-editor-mode select {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+}
+.inline-editor-mode input[type="date"] {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  padding: 4px 8px !important;
+  cursor: pointer !important;
+}
+.inline-editor-mode .rounded-xl,
+.inline-editor-mode .rounded-2xl,
+.inline-editor-mode .rounded-lg {
+  border-radius: 8px !important;
+}
+`;
+
+let _styleInjected = false;
+function injectInlineEditorStyle() {
+  if (_styleInjected || typeof document === "undefined") return;
+  const style = document.createElement("style");
+  style.textContent = INLINE_EDITOR_STYLE;
+  document.head.appendChild(style);
+  _styleInjected = true;
+}
 
 // ─── Inline Edit Wrapper ──────────────────────────────────────────────────────
 
 /**
- * Wraps a rendered block in the preview with an edit toolbar.
- * On click, expands an inline editor panel below the block.
+ * Notion/Canva-style click-to-edit wrapper.
+ *
+ * VIEW MODE  — renders block content as-is, no chrome.
+ *              On hover: dashed blue border + small pencil badge (top-right).
+ *
+ * EDIT MODE  — block content stays visible above.
+ *              Below it: a floating edit panel (white card, subtle shadow)
+ *              containing the Editor component in borderless CSS context,
+ *              plus a micro-toolbar with "Hủy" and "Xóa nội dung".
  */
 function InlineEditWrapper({
   blockId,
   blockType,
-  blockVariant,
-  isEmpty,
   isOpen,
   onToggle,
   onClear,
@@ -473,7 +426,6 @@ function InlineEditWrapper({
 }: {
   blockId: number;
   blockType: string;
-  blockVariant: string;
   isEmpty: boolean;
   isOpen: boolean;
   onToggle: () => void;
@@ -481,67 +433,90 @@ function InlineEditWrapper({
   children: React.ReactNode;
   editor: React.ReactNode;
 }) {
+  // Inject global styles once
+  useEffect(() => { injectInlineEditorStyle(); }, []);
+
   const label = BLOCK_LABELS[normalizeBlockType(blockType)] || blockType;
 
   return (
-    <div
-      id={`block-${blockId}`}
-      className={cn(
-        "group relative rounded-2xl border-2 transition-all duration-200",
-        isOpen
-          ? "border-blue-400 shadow-lg shadow-blue-100"
-          : "border-transparent hover:border-blue-200",
-      )}
-    >
-      {/* Block content */}
+    <div id={`block-${blockId}`} className="relative">
+
+      {/* ── View layer ────────────────────────────────────────────────────── */}
       <div
         className={cn(
-          "relative cursor-pointer transition-all",
-          isOpen && "pointer-events-none",
+          "group relative rounded-xl transition-all duration-150",
+          // VIEW MODE: transparent border, hover shows dashed blue ring
+          !isOpen && "cursor-pointer border-2 border-transparent hover:border-blue-300/60",
+          // EDIT MODE: solid blue ring so user knows which block is active
+          isOpen && "border-2 border-blue-400/70 rounded-xl",
+          // Dashed border style injected via outline trick on hover
         )}
+        style={!isOpen ? { outlineOffset: "0px" } : undefined}
         onClick={() => !isOpen && onToggle()}
       >
-        {children}
-
-        {/* Hover edit hint overlay */}
+        {/* Dashed hover ring (pseudo-border effect via outline) */}
         {!isOpen && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-blue-500/0 opacity-0 transition-all group-hover:bg-blue-500/5 group-hover:opacity-100">
-            <div className="flex items-center gap-1.5 rounded-full bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white shadow-md">
-              <Pencil size={12} />
-              Chỉnh sửa {label}
-            </div>
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0 rounded-xl opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+            style={{
+              outline: "2px dashed #93c5fd",
+              outlineOffset: "2px",
+            }}
+          />
+        )}
+
+        {/* Pencil badge — top-right on hover (view mode) */}
+        {!isOpen && (
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-white/90 px-2 py-1 opacity-0 shadow-sm ring-1 ring-blue-200 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100">
+            <Pencil size={11} className="text-blue-500" />
+            <span className="text-[11px] font-semibold text-blue-600">{label}</span>
           </div>
         )}
+
+        {/* Block content */}
+        {children}
       </div>
 
-      {/* Edit panel */}
+      {/* ── Edit panel (floats below, separated visually) ──────────────────── */}
       {isOpen && (
-        <div className="border-t-2 border-blue-200 bg-blue-50/60 px-4 pb-4 pt-3">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-sm font-bold text-blue-700">
-              Chỉnh sửa: {label}
-            </span>
+        <div
+          className="mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-md"
+          style={{ boxShadow: "0 4px 24px 0 rgba(59,130,246,0.08), 0 1.5px 4px 0 rgba(0,0,0,0.06)" }}
+        >
+          {/* Micro-toolbar */}
+          <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-2">
+            <div className="flex items-center gap-1.5">
+              <div className="h-2 w-2 rounded-full bg-blue-400" />
+              <span className="text-xs font-semibold text-slate-600">
+                Đang chỉnh sửa: <span className="text-blue-600">{label}</span>
+              </span>
+            </div>
             <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={onClear}
-                className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
-                title="Xóa nội dung block này"
+                className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold text-red-500 transition-colors hover:bg-red-50 hover:text-red-600"
               >
-                <Trash2 size={12} />
+                <Trash2 size={11} />
                 Xóa nội dung
               </button>
+              <div className="h-3.5 w-px bg-slate-200" />
               <button
                 type="button"
                 onClick={onToggle}
-                className="rounded-lg border border-slate-200 bg-white p-1.5 text-slate-500 transition-colors hover:bg-slate-50"
-                title="Đóng"
+                className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
               >
-                <X size={14} />
+                <X size={11} />
+                Hủy
               </button>
             </div>
           </div>
-          {editor}
+
+          {/* Editor body — borderless CSS context */}
+          <div className="inline-editor-mode px-4 py-4">
+            {editor}
+          </div>
         </div>
       )}
     </div>
@@ -559,12 +534,10 @@ export default function CreatePortfolio() {
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<EditorTab>(isEditMode ? "component" : "template");
-  const [templates, setTemplates] = useState<PortfolioResponse[]>([]);
   const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
-  const [activeTemplateId, setActiveTemplateId] = useState<number | null>(null);
+  const [activeTemplateId] = useState<number | null>(null);
   const [allowedBlockTypes, setAllowedBlockTypes] = useState<Set<string>>(new Set());
   const [portfolioName, setPortfolioName] = useState("Hồ sơ mới");
-  const [editorSlotPreset, setEditorSlotPreset] = useState<EditorSlotPreset>("default");
   const [blocks, setBlocks] = useState<PortfolioBlock[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -618,9 +591,6 @@ export default function CreatePortfolio() {
       try {
         setLoading(true);
         setError(null);
-        const templateData = await portfolioService.fetchPortfolioTemplates();
-        setTemplates(templateData.slice(0, 5));
-
         if (isEditMode && id) {
           const portfolioId = Number(id);
           if (!accessToken) throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
@@ -634,13 +604,11 @@ export default function CreatePortfolio() {
 
           setBlocks(sortedBlocks);
           setActiveTab("component");
-          setEditorSlotPreset("default");
           setPortfolioName(detail.portfolioName || `Portfolio ${portfolioId}`);
           return;
         }
 
         setBlocks([]);
-        setEditorSlotPreset("default");
         setPortfolioName("Hồ sơ mới");
         setAllowedBlockTypes(new Set());
         setHasStartedEditing(false);
@@ -653,49 +621,6 @@ export default function CreatePortfolio() {
     initialize();
   }, [id, isEditMode, accessToken]);
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-
-  const editorSlots = useMemo<EditorSlot[]>(() => {
-    let baseSlots: EditorSlot[] = [];
-    if (editorSlotPreset === "template2") baseSlots = [...TEMPLATE_TWO_EDITOR_SLOTS];
-    else if (editorSlotPreset === "template3") baseSlots = [...TEMPLATE_THREE_EDITOR_SLOTS];
-    else if (editorSlotPreset === "template4") baseSlots = [...TEMPLATE_FOUR_EDITOR_SLOTS];
-    else if (editorSlotPreset === "template5") baseSlots = [...TEMPLATE_FIVE_EDITOR_SLOTS];
-    else baseSlots = EDITABLE_BLOCK_TYPES.map((type) => ({ type, label: BLOCK_LABELS[type] }));
-
-    const extraSlots: EditorSlot[] = [];
-    blocks.forEach((block) => {
-      const inBase = baseSlots.some(
-        (slot) =>
-          slot.type === normalizeBlockType(block.type) &&
-          (!slot.variant || slot.variant?.toUpperCase() === block.variant.toUpperCase()),
-      );
-      if (!inBase) {
-        extraSlots.push({
-          type: normalizeBlockType(block.type) as ExtendedEditorBlockType,
-          variant: block.variant,
-          label: `${BLOCK_LABELS[normalizeBlockType(block.type)]} (Tùy chỉnh)`,
-        });
-      }
-    });
-    return [...baseSlots, ...extraSlots];
-  }, [editorSlotPreset, blocks]);
-
-  // ── Block helpers ──────────────────────────────────────────────────────────
-
-  const findBlockForSlot = useCallback(
-    (slot: EditorSlot): PortfolioBlock | null => {
-      const slotVariant = slot.variant?.toUpperCase();
-      return (
-        blocks.find(
-          (b) =>
-            normalizeBlockType(b.type) === slot.type &&
-            (!slotVariant || b.variant.toUpperCase() === slotVariant),
-        ) ?? null
-      );
-    },
-    [blocks],
-  );
 
   const updateBlockDataById = useCallback(
     (blockId: number, updater: (current: unknown) => unknown) => {
@@ -722,6 +647,8 @@ export default function CreatePortfolio() {
 
   // ── addBlockFromCatalog ────────────────────────────────────────────────────
 
+  // ── addBlockFromCatalog ────────────────────────────────────────────────────
+
   const addBlockFromCatalog = (type: string, forcedVariant?: string) => {
     const normalizedType = normalizeBlockType(type);
     if (!isEditMode && activeTemplateId && !allowedBlockTypes.has(normalizedType)) {
@@ -739,7 +666,11 @@ export default function CreatePortfolio() {
     if (existingBlock) {
       // Scroll to and open that block for editing
       setOpenEditorBlockId(existingBlock.id);
-      setActiveTab("template"); // go to preview to see it
+      
+      // CHỖ CẦN SỬA 1: Xóa hoặc comment dòng setActiveTab("template") dưới đây 
+      // để tránh nhảy sang tab Thiết kế mẫu khi block đã tồn tại
+      // setActiveTab("template"); 
+
       setTimeout(() => {
         document.getElementById(`block-${existingBlock.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 100);
@@ -756,9 +687,14 @@ export default function CreatePortfolio() {
 
     setBlocks((prev) => sortAndReindexBlocks([...prev, newBlock]));
     setHasStartedEditing(true);
-    // Open editor for new block and switch to preview
+    
+    // Open editor for new block
     setOpenEditorBlockId(newBlock.id);
-    setActiveTab("template");
+
+    // CHỖ CẦN SỬA 2: Xóa hoặc comment dòng setActiveTab("template") dưới đây 
+    // để giữ nguyên sidebar ở tab "Thành phần" khi thêm block mới thành công
+    // setActiveTab("template");
+
     setTimeout(() => {
       document.getElementById(`block-${newBlock.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 150);
@@ -826,38 +762,6 @@ export default function CreatePortfolio() {
 
   // ── Template apply ─────────────────────────────────────────────────────────
 
-  const applyTemplate = (template: PortfolioResponse) => {
-    const blockTypes = new Set(template.blocks.map((block) => normalizeBlockType(block.type)));
-    setAllowedBlockTypes(blockTypes);
-    setBlocks([]);
-    setActiveTemplateId(template.portfolioId);
-    setHasStartedEditing(true);
-    setOpenEditorBlockId(null);
-
-    const selectedIndex = templates.findIndex((t) => t.portfolioId === template.portfolioId);
-    const templateVariants = new Set(template.blocks.map((b) => b.variant.toUpperCase()));
-
-    const matchesTwo =
-      templateVariants.size === TEMPLATE_TWO_REQUIRED_VARIANTS.size &&
-      Array.from(TEMPLATE_TWO_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
-    const matchesThree =
-      templateVariants.size === TEMPLATE_THREE_REQUIRED_VARIANTS.size &&
-      Array.from(TEMPLATE_THREE_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
-    const matchesFour =
-      templateVariants.size === TEMPLATE_FOUR_REQUIRED_VARIANTS.size &&
-      Array.from(TEMPLATE_FOUR_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
-    const matchesFive =
-      templateVariants.size === TEMPLATE_FIVE_REQUIRED_VARIANTS.size &&
-      Array.from(TEMPLATE_FIVE_REQUIRED_VARIANTS).every((v) => templateVariants.has(v));
-
-    if (selectedIndex === 1 || matchesTwo) setEditorSlotPreset("template2");
-    else if (selectedIndex === 2 || matchesThree) setEditorSlotPreset("template3");
-    else if (selectedIndex === 3 || matchesFour) setEditorSlotPreset("template4");
-    else if (selectedIndex === 4 || matchesFive) setEditorSlotPreset("template5");
-    else setEditorSlotPreset("default");
-
-    setActiveTab("component");
-  };
 
   const handleVariantSelect = (variant: string) => {
     if (!selectedBlockTypeForVariant) return;
@@ -1050,7 +954,7 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [...items, {
                   schoolName: draft.schoolName, school: draft.schoolName,
-                  time: draft.time, department: draft.department,
+                  startTime: draft.startTime, endTime: draft.isCurrent ? "" : draft.endTime, department: draft.department,
                   major: draft.department, certificate: draft.certificate,
                   description: draft.description,
                 }];
@@ -1060,7 +964,8 @@ export default function CreatePortfolio() {
             onSaveList={(list: EducationOneDraft[]) => {
               handleSaveWrapper(list.map((e) => ({
                 schoolName: e.schoolName, school: e.schoolName,
-                time: e.time, department: e.department,
+                startTime: e.startTime,
+                endTime: e.isCurrent ? "" : e.endTime, department: e.department,
                 major: e.department, certificate: e.certificate,
                 description: e.description,
               })));
@@ -1160,8 +1065,7 @@ export default function CreatePortfolio() {
               const projectLinks = buildProjectLinks(draft);
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [{
-                  ...(items[0] ?? {}),
+                return [...items, {
                   image: draft.image, name: draft.name,
                   description: draft.description, role: draft.role,
                   technology: draft.technology, projectLinks, links: projectLinks,
@@ -1240,8 +1144,7 @@ export default function CreatePortfolio() {
             onSave={(draft: AwardOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [{
-                  ...(items[0] ?? {}),
+                return [...items, {
                   name: draft.name, date: draft.date, time: draft.date,
                   organization: draft.organization, issuer: draft.organization,
                   description: draft.description,
@@ -1273,8 +1176,7 @@ export default function CreatePortfolio() {
             onSave={(draft: ActivityOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [{
-                  ...(items[0] ?? {}),
+                return [...items, {
                   name: draft.name, date: draft.date, time: draft.date,
                   description: draft.description,
                 }];
@@ -1392,8 +1294,7 @@ export default function CreatePortfolio() {
             onSave={(draft: ReferenceOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [{
-                  ...(items[0] ?? {}),
+                return [...items, {
                   name: draft.name, position: draft.position,
                   mail: draft.email, email: draft.email,
                   phone: draft.contactInfo, detail: draft.contactInfo,
@@ -1425,8 +1326,7 @@ export default function CreatePortfolio() {
             onSave={(draft: CertificateOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [{
-                  ...(items[0] ?? {}),
+                return [...items, {
                   name: draft.name, issuer: draft.issuer,
                   provider: draft.issuer, year: draft.year,
                   date: draft.year, link: draft.link,
@@ -1886,14 +1786,12 @@ export default function CreatePortfolio() {
             {/* ── Center preview (full width, inline editing) ──────────────── */}
             <main className="rounded-2xl border border-slate-200 bg-white">
 
-              {/* Inline editing hint bar */}
+              {/* Minimal hint bar */}
               {blocks.length > 0 && (
-                <div className="flex items-center gap-2 border-b border-slate-100 bg-blue-50/60 px-4 py-2.5">
-                  <div className="rounded-full bg-blue-100 p-1">
-                    <Pencil size={12} className="text-blue-600" />
-                  </div>
-                  <p className="text-xs text-blue-700 font-medium">
-                    Bấm vào bất kỳ phần nào trên hồ sơ để chỉnh sửa trực tiếp
+                <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2">
+                  <Pencil size={11} className="text-slate-400" />
+                  <p className="text-[11px] text-slate-400">
+                    Rê chuột và bấm vào phần muốn chỉnh sửa
                   </p>
                 </div>
               )}
@@ -1926,8 +1824,7 @@ export default function CreatePortfolio() {
                     </div>
                   </div>
                 ) : (
-                  /* Render each block wrapped in InlineEditWrapper */
-                  <div className="mx-auto max-w-2xl space-y-2">
+                  <div className="mx-auto max-w-2xl space-y-1">
                     {blocks.map((block) => {
                       const isEmpty = isBlockDataEmpty(block.data);
                       const isOpen = openEditorBlockId === block.id;
@@ -1938,7 +1835,6 @@ export default function CreatePortfolio() {
                           key={block.id}
                           blockId={block.id}
                           blockType={block.type}
-                          blockVariant={block.variant}
                           isEmpty={isEmpty}
                           isOpen={isOpen}
                           onToggle={() =>
@@ -1947,15 +1843,15 @@ export default function CreatePortfolio() {
                           onClear={() => clearBlockData(block.id)}
                           editor={editor}
                         >
-                          {/* Empty placeholder shown when block has no data */}
                           {isEmpty ? (
-                            <div className="flex min-h-[80px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center">
+                            /* Empty block placeholder */
+                            <div className="flex min-h-[72px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-4 py-4 text-center">
                               <div>
-                                <p className="text-sm font-semibold text-slate-500">
+                                <p className="text-xs font-semibold text-slate-400">
                                   {BLOCK_LABELS[normalizeBlockType(block.type)] || block.type}
                                 </p>
-                                <p className="mt-0.5 text-xs text-slate-400">
-                                  Chưa có nội dung — bấm để nhập
+                                <p className="mt-0.5 text-[11px] text-slate-300">
+                                  Chưa có nội dung
                                 </p>
                               </div>
                             </div>

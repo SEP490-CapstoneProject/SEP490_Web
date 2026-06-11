@@ -128,7 +128,8 @@ export type EducationItem = {
   schoolName?: string;
   major?: string;
   department?: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   description?: string;
 };
 
