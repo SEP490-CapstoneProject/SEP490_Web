@@ -1,4 +1,4 @@
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X, Calendar } from "lucide-react";
 import { useState } from "react";
 import { type EducationOneDraft } from "@/pages/portfolio/editor/educationOneDraft";
 
@@ -18,17 +18,17 @@ export default function EducationOneEditor({
   onCancel,
 }: EducationOneEditorProps) {
   const [draft, setDraft] = useState<EducationOneDraft>(initialData);
-  const [educationList, setEducationList] = useState<EducationOneDraft[]>(initialList);
+  const [educationList, setEducationList] =
+    useState<EducationOneDraft[]>(initialList);
 
-  const hasContent = [
-    draft.schoolName,
-    draft.time,
-    draft.department,
-    draft.certificate,
-    draft.description,
-  ].some((value) => value.trim().length > 0);
+  const hasContent = [draft.schoolName, draft.startTime, draft.department].some(
+    (value) => value?.toString().trim().length > 0,
+  );
 
-  const updateDraftField = (field: keyof EducationOneDraft, value: string) => {
+  const updateDraftField = <K extends keyof EducationOneDraft>(
+    field: K,
+    value: EducationOneDraft[K],
+  ) => {
     setDraft((prevDraft) => ({
       ...prevDraft,
       [field]: value,
@@ -36,13 +36,13 @@ export default function EducationOneEditor({
   };
 
   const handleAddEducation = () => {
-    if (!hasContent) {
-      return;
-    }
+    if (!hasContent) return;
 
     const newEducation: EducationOneDraft = {
       schoolName: draft.schoolName.trim(),
-      time: draft.time.trim(),
+      startTime: draft.startTime.trim(),
+      endTime: draft.endTime?.trim() || "",
+      isCurrent: draft.isCurrent,
       department: draft.department.trim(),
       certificate: draft.certificate.trim(),
       description: draft.description.trim(),
@@ -54,7 +54,9 @@ export default function EducationOneEditor({
     // Reset form
     setDraft({
       schoolName: "",
-      time: "",
+      startTime: "",
+      endTime: "",
+      isCurrent: false,
       department: "",
       certificate: "",
       description: "",
@@ -76,11 +78,24 @@ export default function EducationOneEditor({
     }
   };
 
+  // Helper hiển thị thời gian
+  const formatEducationTime = (edu: EducationOneDraft): string => {
+    if (edu.isCurrent) {
+      return `${edu.startTime} - Hiện tại`;
+    }
+    if (edu.endTime) {
+      return `${edu.startTime} - ${edu.endTime}`;
+    }
+    return edu.startTime;
+  };
+
   return (
     <div className="overflow-hidden rounded-2xl border border-[#d7dfeb] bg-[#EFF6FF]">
       <div className="flex items-start justify-between border-b border-[#d7dfeb] px-4 py-3">
         <div>
-          <h3 className="text-[30px] font-bold leading-tight text-slate-800">Thêm học vấn</h3>
+          <h3 className="text-[30px] font-bold leading-tight text-slate-800">
+            Thêm học vấn
+          </h3>
           <p className="mt-1 text-sm text-slate-500">
             Hãy điền thêm học vấn để hiển thị trong hồ sơ của bạn
           </p>
@@ -95,7 +110,7 @@ export default function EducationOneEditor({
         </button>
       </div>
 
-      {/* List of existing education */}
+      {/* Danh sách học vấn đã thêm */}
       {educationList.length > 0 && (
         <div className="border-b border-[#d7dfeb] px-3 py-3">
           <h4 className="mb-3 text-sm font-semibold text-slate-700">
@@ -107,13 +122,17 @@ export default function EducationOneEditor({
                 key={index}
                 className="flex items-start justify-between rounded-lg border border-[#d1d5db] bg-white p-3"
               >
-                <div className="flex-1">
-                  <p className="font-semibold text-slate-800">{education.schoolName}</p>
-                  {education.time && (
-                    <p className="text-xs text-slate-500">{education.time}</p>
-                  )}
+                <div className="flex-1 pr-3">
+                  <p className="font-semibold text-slate-800">
+                    {education.schoolName}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {formatEducationTime(education)}
+                  </p>
                   {education.department && (
-                    <p className="text-xs text-slate-600">{education.department}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {education.department}
+                    </p>
                   )}
                 </div>
                 <button
@@ -130,53 +149,107 @@ export default function EducationOneEditor({
         </div>
       )}
 
+      {/* Form nhập học vấn mới */}
       <div className="space-y-3 p-3">
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-slate-600">Tên trường / cơ sở / tổ chức</label>
+          <label className="text-sm font-semibold text-slate-600">
+            Tên trường / cơ sở / tổ chức
+          </label>
           <input
-            value={draft.schoolName}
-            onChange={(event) => updateDraftField("schoolName", event.target.value)}
+            value={draft.schoolName || ""}
+            onChange={(e) => updateDraftField("schoolName", e.target.value)}
             placeholder="Nhập tên trường / cơ sở / tổ chức bạn đã học"
             className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8]"
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-slate-600">Thời gian</label>
+        {/* Thời gian - Sử dụng date picker month */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-600 flex items-center gap-1.5">
+              <Calendar size={16} />
+              Thời gian bắt đầu
+            </label>
+            <input
+              type="month"
+              value={draft.startTime || ""}
+              onChange={(e) => updateDraftField("startTime", e.target.value)}
+              className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8]"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-semibold text-slate-600 flex items-center gap-1.5">
+              <Calendar size={16} />
+              Thời gian kết thúc
+            </label>
+            <input
+              type="month"
+              value={draft.isCurrent ? "" : draft.endTime || ""}
+              onChange={(e) => updateDraftField("endTime", e.target.value)}
+              disabled={draft.isCurrent}
+              className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8] disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+        </div>
+
+        {/* Checkbox đang học */}
+        <div className="flex items-center gap-2 pt-1">
           <input
-            value={draft.time}
-            onChange={(event) => updateDraftField("time", event.target.value)}
-            placeholder="Nhập thời gian bắt đầu và kết thúc, ví dụ: 2021 - 2026"
-            className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8]"
+            type="checkbox"
+            id="isCurrent"
+            // ĐẢM BẢO CÓ DÒNG NÀY (Dùng checked thay vì value):
+            checked={!!draft.isCurrent}
+            onChange={(e) => {
+              const checked = e.target.checked;
+              setDraft((prev) => ({
+                ...prev,
+                isCurrent: checked,
+                endTime: checked ? "" : prev.endTime,
+              }));
+            }}
+            className="h-4 w-4 rounded border-slate-300 accent-[#4A79E8] focus:ring-[#4A79E8]"
           />
+          <label
+            htmlFor="isCurrent"
+            className="text-sm text-slate-600 cursor-pointer select-none"
+          >
+            Tôi đang học tại đây
+          </label>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-slate-600">Chuyên ngành</label>
+          <label className="text-sm font-semibold text-slate-600">
+            Chuyên ngành
+          </label>
           <input
-            value={draft.department}
-            onChange={(event) => updateDraftField("department", event.target.value)}
+            value={draft.department || ""}
+            onChange={(e) => updateDraftField("department", e.target.value)}
             placeholder="Nhập chuyên ngành bạn đã hoàn thành"
             className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8]"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-slate-600">Chứng chỉ</label>
+          <label className="text-sm font-semibold text-slate-600">
+            Chứng chỉ
+          </label>
           <input
-            value={draft.certificate}
-            onChange={(event) => updateDraftField("certificate", event.target.value)}
-            placeholder="Nhập chứng chỉ bạn đạt được"
+            value={draft.certificate || ""}
+            onChange={(e) => updateDraftField("certificate", e.target.value)}
+            placeholder="Nhập chứng chỉ bạn đạt được (nếu có)"
             className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8]"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-semibold text-slate-600">Giới thiệu</label>
+          <label className="text-sm font-semibold text-slate-600">
+            Giới thiệu
+          </label>
           <textarea
-            value={draft.description}
-            onChange={(event) => updateDraftField("description", event.target.value)}
-            placeholder="Thêm chút giới thiệu những gì bạn đã đạt được"
+            value={draft.description || ""}
+            onChange={(e) => updateDraftField("description", e.target.value)}
+            placeholder="Thêm chút giới thiệu những gì bạn đã đạt được..."
             className="min-h-28 w-full resize-none rounded-xl border border-[#d1d5db] bg-white p-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8]"
           />
         </div>

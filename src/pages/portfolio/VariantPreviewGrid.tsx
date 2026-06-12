@@ -281,7 +281,7 @@ const EditorPreview: React.FC<EditorPreviewProps> = ({
         case "EDUCATION.EDUCATIONTHREE":
           return <EducationThreeEditor initialData={{} as any} latestData={mockData as any} {...dummyCallbacks} />;
         case "EXPERIMENT.EXPERIMENTONE":
-          return <ExperienceOneEditor initialData={mockData as any} existingItems={[]} {...dummyCallbacks} />;
+          return <ExperienceOneEditor initialData={mockData as any}  {...dummyCallbacks} />;
         case "PROJECT.PROJECTONE":
           return <ProjectOneEditor initialData={mockData as any} initialList={[]} {...dummyCallbacks} />;
         case "PROJECT.PROJECTTWO":

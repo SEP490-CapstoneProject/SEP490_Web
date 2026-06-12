@@ -1,6 +1,6 @@
-import React from 'react';
-import { ExperienceItem } from '@/services/portfolio.api';
-import WorkingTimeIcon from '../../../../assets/myWeb/working-time 2.png';
+import React from "react";
+import { ExperienceItem } from "@/services/portfolio.api";
+import WorkingTimeIcon from "../../../../assets/myWeb/working-time 2.png";
 
 interface ExperienceOneProps {
   data: ExperienceItem[];
@@ -19,7 +19,9 @@ const ExperienceOne: React.FC<ExperienceOneProps> = ({ data }) => {
         <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
           <img src={WorkingTimeIcon} alt="Kinh nghiệm" className="w-6 h-6" />
         </div>
-        <h3 className="text-2xl font-bold text-gray-900">Kinh nghiệm làm việc</h3>
+        <h3 className="text-2xl font-bold text-gray-900">
+          Kinh nghiệm làm việc
+        </h3>
       </div>
       {experiences.length > 0 ? (
         <div className="space-y-0">
@@ -35,17 +37,29 @@ const ExperienceOne: React.FC<ExperienceOneProps> = ({ data }) => {
               {/* Content */}
               <div className="flex-1 pb-4">
                 <p className="text-blue-600 font-bold text-lg">
-                  {exp.startDate && exp.endDate ? `${exp.startDate} - ${exp.endDate}` : 'N/A'}
+                  {exp.startDate
+                    ? `${exp.startDate} - ${exp.isCurrent ? "Hiện tại" : exp.endDate || "N/A"}`
+                    : "N/A"}
                 </p>
-                <h3 className="text-xl font-bold text-gray-900 mt-2">{exp.jobName || 'Job Title'}</h3>
-                <p className="text-gray-600 text-sm mt-1">{exp.address || 'Company'}</p>
-                {exp.description && <p className="text-gray-700 text-sm mt-3">{exp.description}</p>}
+                <h3 className="text-xl font-bold text-gray-900 mt-2">
+                  {exp.jobName || "Job Title"}
+                </h3>
+                <p className="text-gray-600 text-sm mt-1">
+                  {exp.address || "Company"}
+                </p>
+                {exp.description && (
+                  <p className="text-gray-700 text-sm mt-3">
+                    {exp.description}
+                  </p>
+                )}
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="text-center py-8 text-gray-500">No experience added yet</div>
+        <div className="text-center py-8 text-gray-500">
+          No experience added yet
+        </div>
       )}
     </div>
   );

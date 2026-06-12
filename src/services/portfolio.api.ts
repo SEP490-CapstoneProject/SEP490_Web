@@ -116,6 +116,8 @@ export type ExperienceItem = {
   address: string;
   startDate: string;
   endDate: string;
+  isCurrent?: boolean;
+  time: string;
   description?: string;
 };
 
@@ -128,7 +130,8 @@ export type EducationItem = {
   schoolName?: string;
   major?: string;
   department?: string;
-  time: string;
+  startTime: string;
+  endTime: string;
   description?: string;
 };
 
