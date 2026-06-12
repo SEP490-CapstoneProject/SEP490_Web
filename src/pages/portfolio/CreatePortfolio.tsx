@@ -13,12 +13,7 @@ import {
   Layers,
   Sparkles,
 } from "lucide-react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-} from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { BLOCK_CATALOG, getBlockInfo } from "./blockCatalog";
 import VariantSelector from "./VariantSelector";
@@ -109,8 +104,8 @@ import {
 } from "@/pages/portfolio/editor/educationThreeDraft";
 import {
   createExperienceOneDraft,
-  splitExperienceOneTimeRange,
   type ExperienceOneDraft,
+  composeExperienceOneTime
 } from "@/pages/portfolio/editor/experienceOneDraft";
 import {
   createIntroOneDraft,
@@ -167,11 +162,11 @@ import {
 } from "./editor/projectTwoDraft";
 import PortfolioRenderer from "@/components/portfolio/render/PortfolioRenderer";
 import { cn } from "@/lib/utils";
+import { PortfolioBlock, portfolioService } from "@/services/portfolio.api";
 import {
-  PortfolioBlock,
-  portfolioService,
-} from "@/services/portfolio.api";
-import { fetchEmployeeProfile, type EmployeeProfile } from "@/services/profile.api";
+  fetchEmployeeProfile,
+  type EmployeeProfile,
+} from "@/services/profile.api";
 import { useAppSelector } from "@/store/hook";
 import { notify } from "@/lib/toast";
 
@@ -191,8 +186,11 @@ type EditableBlockType =
   | "REFERENCE"
   | "DIPLOMA";
 
-type ExtendedEditorBlockType = EditableBlockType | "RESEARCH" | "TEACHING" | "TYPICALCASE";
-
+type ExtendedEditorBlockType =
+  | EditableBlockType
+  | "RESEARCH"
+  | "TEACHING"
+  | "TYPICALCASE";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -211,8 +209,6 @@ const BLOCK_LABELS: Record<string, string> = {
   TEACHING: "Giảng dạy",
   TYPICALCASE: "Ca điển hình",
 };
-
-
 
 const BLOCK_VARIANTS: Record<string, string[]> = {
   INTRO: ["INTROONE", "INTROTWO", "INTROTHREE", "INTROFOUR", "INTROFIVE"],
@@ -295,9 +291,17 @@ const createDefaultBlockData = (type: string, variant: string): unknown => {
 
   switch (normalizedType) {
     case "INTRO":
-      return { fullName: "", title: "", description: "", avatar: "", email: "", phone: "" };
+      return {
+        fullName: "",
+        title: "",
+        description: "",
+        avatar: "",
+        email: "",
+        phone: "",
+      };
     case "SKILL":
-      if (normalizedVariant === "SKILLTWO") return { languages: [], frameworks: [], tools: [] };
+      if (normalizedVariant === "SKILLTWO")
+        return { languages: [], frameworks: [], tools: [] };
       return [];
     case "EDUCATION":
     case "EXPERIMENT":
@@ -312,10 +316,18 @@ const createDefaultBlockData = (type: string, variant: string): unknown => {
       return [];
     case "OTHERINFO":
       if (normalizedVariant === "OTHERONE") return [];
-      if (["OTHERTWO", "OTHERTHREE", "OTHERFOUR"].includes(normalizedVariant)) return { detail: "" };
-      if (["OTHERFIVE", "OTHERSIX", "OTHERSEVEN"].includes(normalizedVariant)) return [];
+      if (["OTHERTWO", "OTHERTHREE", "OTHERFOUR"].includes(normalizedVariant))
+        return { detail: "" };
+      if (["OTHERFIVE", "OTHERSIX", "OTHERSEVEN"].includes(normalizedVariant))
+        return [];
       if (normalizedVariant === "OTHEREIGHT") {
-        return { title: "", licenseNumber: "", issuer: "", status: "", detail: "" };
+        return {
+          title: "",
+          licenseNumber: "",
+          issuer: "",
+          status: "",
+          detail: "",
+        };
       }
       return [];
     default:
@@ -328,8 +340,12 @@ const isBlockDataEmpty = (data: unknown): boolean => {
   if (Array.isArray(data)) return data.length === 0;
   if (typeof data === "object") {
     const vals = Object.values(data as Record<string, unknown>);
-    return vals.every((v) =>
-      v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0),
+    return vals.every(
+      (v) =>
+        v === null ||
+        v === undefined ||
+        v === "" ||
+        (Array.isArray(v) && v.length === 0),
     );
   }
   return false;
@@ -337,13 +353,23 @@ const isBlockDataEmpty = (data: unknown): boolean => {
 
 const getOrderedBlockCatalog = (): typeof BLOCK_CATALOG => {
   const blockOrder: Record<string, number> = {
-    INTRO: 0, SKILL: 1, EDUCATION: 2, EXPERIMENT: 3, PROJECT: 4,
-    DIPLOMA: 5, AWARD: 6, ACTIVITIES: 7, REFERENCE: 8,
-    RESEARCH: 9, TEACHING: 10, TYPICALCASE: 11,
+    INTRO: 0,
+    SKILL: 1,
+    EDUCATION: 2,
+    EXPERIMENT: 3,
+    PROJECT: 4,
+    DIPLOMA: 5,
+    AWARD: 6,
+    ACTIVITIES: 7,
+    REFERENCE: 8,
+    RESEARCH: 9,
+    TEACHING: 10,
+    TYPICALCASE: 11,
   };
-  return [...BLOCK_CATALOG].sort((a, b) => (blockOrder[a.type] ?? 999) - (blockOrder[b.type] ?? 999));
+  return [...BLOCK_CATALOG].sort(
+    (a, b) => (blockOrder[a.type] ?? 999) - (blockOrder[b.type] ?? 999),
+  );
 };
-
 
 // ─── Global borderless editor styles (injected once) ─────────────────────────
 //
@@ -434,19 +460,21 @@ function InlineEditWrapper({
   editor: React.ReactNode;
 }) {
   // Inject global styles once
-  useEffect(() => { injectInlineEditorStyle(); }, []);
+  useEffect(() => {
+    injectInlineEditorStyle();
+  }, []);
 
   const label = BLOCK_LABELS[normalizeBlockType(blockType)] || blockType;
 
   return (
     <div id={`block-${blockId}`} className="relative">
-
       {/* ── View layer ────────────────────────────────────────────────────── */}
       <div
         className={cn(
           "group relative rounded-xl transition-all duration-150",
           // VIEW MODE: transparent border, hover shows dashed blue ring
-          !isOpen && "cursor-pointer border-2 border-transparent hover:border-blue-300/60",
+          !isOpen &&
+            "cursor-pointer border-2 border-transparent hover:border-blue-300/60",
           // EDIT MODE: solid blue ring so user knows which block is active
           isOpen && "border-2 border-blue-400/70 rounded-xl",
           // Dashed border style injected via outline trick on hover
@@ -470,7 +498,9 @@ function InlineEditWrapper({
         {!isOpen && (
           <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-white/90 px-2 py-1 opacity-0 shadow-sm ring-1 ring-blue-200 backdrop-blur-sm transition-opacity duration-150 group-hover:opacity-100">
             <Pencil size={11} className="text-blue-500" />
-            <span className="text-[11px] font-semibold text-blue-600">{label}</span>
+            <span className="text-[11px] font-semibold text-blue-600">
+              {label}
+            </span>
           </div>
         )}
 
@@ -482,7 +512,10 @@ function InlineEditWrapper({
       {isOpen && (
         <div
           className="mt-1.5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-md"
-          style={{ boxShadow: "0 4px 24px 0 rgba(59,130,246,0.08), 0 1.5px 4px 0 rgba(0,0,0,0.06)" }}
+          style={{
+            boxShadow:
+              "0 4px 24px 0 rgba(59,130,246,0.08), 0 1.5px 4px 0 rgba(0,0,0,0.06)",
+          }}
         >
           {/* Micro-toolbar */}
           <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-4 py-2">
@@ -514,9 +547,7 @@ function InlineEditWrapper({
           </div>
 
           {/* Editor body — borderless CSS context */}
-          <div className="inline-editor-mode px-4 py-4">
-            {editor}
-          </div>
+          <div className="inline-editor-mode px-4 py-4">{editor}</div>
         </div>
       )}
     </div>
@@ -533,10 +564,15 @@ export default function CreatePortfolio() {
   const { user, accessToken } = useAppSelector((state) => state.auth);
 
   // ── State ──────────────────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<EditorTab>(isEditMode ? "component" : "template");
-  const [employeeProfile, setEmployeeProfile] = useState<EmployeeProfile | null>(null);
+  const [activeTab, setActiveTab] = useState<EditorTab>(
+    isEditMode ? "component" : "template",
+  );
+  const [employeeProfile, setEmployeeProfile] =
+    useState<EmployeeProfile | null>(null);
   const [activeTemplateId] = useState<number | null>(null);
-  const [allowedBlockTypes, setAllowedBlockTypes] = useState<Set<string>>(new Set());
+  const [allowedBlockTypes, setAllowedBlockTypes] = useState<Set<string>>(
+    new Set(),
+  );
   const [portfolioName, setPortfolioName] = useState("Hồ sơ mới");
   const [blocks, setBlocks] = useState<PortfolioBlock[]>([]);
   const [loading, setLoading] = useState(true);
@@ -545,13 +581,18 @@ export default function CreatePortfolio() {
   const [hasStartedEditing, setHasStartedEditing] = useState(isEditMode);
 
   // Track which block's inline editor is open (by block id)
-  const [openEditorBlockId, setOpenEditorBlockId] = useState<number | null>(null);
+  const [openEditorBlockId, setOpenEditorBlockId] = useState<number | null>(
+    null,
+  );
 
   // Reset keys per block so editors reinitialise after save
-  const [blockResetKeys, setBlockResetKeys] = useState<Record<number, number>>({});
+  const [blockResetKeys, setBlockResetKeys] = useState<Record<number, number>>(
+    {},
+  );
 
   const [showVariantSelector, setShowVariantSelector] = useState(false);
-  const [selectedBlockTypeForVariant, setSelectedBlockTypeForVariant] = useState<string | null>(null);
+  const [selectedBlockTypeForVariant, setSelectedBlockTypeForVariant] =
+    useState<string | null>(null);
 
   const nextTempBlockIdRef = useRef(-1);
 
@@ -564,7 +605,11 @@ export default function CreatePortfolio() {
   const getUserInfo = useCallback(() => {
     if (!user) return undefined;
     return {
-      fullName: employeeProfile?.name || (user as any).fullName || (user as any).name || undefined,
+      fullName:
+        employeeProfile?.name ||
+        (user as any).fullName ||
+        (user as any).name ||
+        undefined,
       email: user.email,
       phone: employeeProfile?.phone || (user as any).phone || undefined,
       name: employeeProfile?.name || (user as any).name || undefined,
@@ -593,14 +638,21 @@ export default function CreatePortfolio() {
         setError(null);
         if (isEditMode && id) {
           const portfolioId = Number(id);
-          if (!accessToken) throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-          const detail = await portfolioService.fetchPortfolioByIdAPI(portfolioId, accessToken);
-          if (!detail) throw new Error("Không tìm thấy portfolio cần chỉnh sửa.");
+          if (!accessToken)
+            throw new Error("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+          const detail = await portfolioService.fetchPortfolioByIdAPI(
+            portfolioId,
+            accessToken,
+          );
+          if (!detail)
+            throw new Error("Không tìm thấy portfolio cần chỉnh sửa.");
 
-          const sortedBlocks = sortAndReindexBlocks(detail.blocks).map((block) => ({
-            ...block,
-            data: deepClone(block.data),
-          }));
+          const sortedBlocks = sortAndReindexBlocks(detail.blocks).map(
+            (block) => ({
+              ...block,
+              data: deepClone(block.data),
+            }),
+          );
 
           setBlocks(sortedBlocks);
           setActiveTab("component");
@@ -613,14 +665,17 @@ export default function CreatePortfolio() {
         setAllowedBlockTypes(new Set());
         setHasStartedEditing(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Không thể khởi tạo màn tạo hồ sơ.");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Không thể khởi tạo màn tạo hồ sơ.",
+        );
       } finally {
         setLoading(false);
       }
     };
     initialize();
   }, [id, isEditMode, accessToken]);
-
 
   const updateBlockDataById = useCallback(
     (blockId: number, updater: (current: unknown) => unknown) => {
@@ -638,10 +693,16 @@ export default function CreatePortfolio() {
     setBlocks((prev) =>
       prev.map((block) => {
         if (block.id !== blockId) return block;
-        return { ...block, data: createDefaultBlockData(block.type, block.variant) };
+        return {
+          ...block,
+          data: createDefaultBlockData(block.type, block.variant),
+        };
       }),
     );
-    setBlockResetKeys((prev) => ({ ...prev, [blockId]: (prev[blockId] ?? 0) + 1 }));
+    setBlockResetKeys((prev) => ({
+      ...prev,
+      [blockId]: (prev[blockId] ?? 0) + 1,
+    }));
     setOpenEditorBlockId(null);
   }, []);
 
@@ -651,28 +712,40 @@ export default function CreatePortfolio() {
 
   const addBlockFromCatalog = (type: string, forcedVariant?: string) => {
     const normalizedType = normalizeBlockType(type);
-    if (!isEditMode && activeTemplateId && !allowedBlockTypes.has(normalizedType)) {
-      setError(`Loại block "${BLOCK_LABELS[normalizedType] || normalizedType}" không được hỗ trợ bởi template này.`);
+    if (
+      !isEditMode &&
+      activeTemplateId &&
+      !allowedBlockTypes.has(normalizedType)
+    ) {
+      setError(
+        `Loại block "${BLOCK_LABELS[normalizedType] || normalizedType}" không được hỗ trợ bởi template này.`,
+      );
       return;
     }
 
-    const variant = (forcedVariant?.toUpperCase() || getDefaultVariant(type)).toUpperCase();
+    const variant = (
+      forcedVariant?.toUpperCase() || getDefaultVariant(type)
+    ).toUpperCase();
 
     // Check if block already exists for this slot
     const existingBlock = blocks.find(
-      (b) => normalizeBlockType(b.type) === normalizedType && b.variant.toUpperCase() === variant,
+      (b) =>
+        normalizeBlockType(b.type) === normalizedType &&
+        b.variant.toUpperCase() === variant,
     );
 
     if (existingBlock) {
       // Scroll to and open that block for editing
       setOpenEditorBlockId(existingBlock.id);
-      
-      // CHỖ CẦN SỬA 1: Xóa hoặc comment dòng setActiveTab("template") dưới đây 
+
+      // CHỖ CẦN SỬA 1: Xóa hoặc comment dòng setActiveTab("template") dưới đây
       // để tránh nhảy sang tab Thiết kế mẫu khi block đã tồn tại
-      // setActiveTab("template"); 
+      // setActiveTab("template");
 
       setTimeout(() => {
-        document.getElementById(`block-${existingBlock.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        document
+          .getElementById(`block-${existingBlock.id}`)
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 100);
       return;
     }
@@ -687,16 +760,18 @@ export default function CreatePortfolio() {
 
     setBlocks((prev) => sortAndReindexBlocks([...prev, newBlock]));
     setHasStartedEditing(true);
-    
+
     // Open editor for new block
     setOpenEditorBlockId(newBlock.id);
 
-    // CHỖ CẦN SỬA 2: Xóa hoặc comment dòng setActiveTab("template") dưới đây 
+    // CHỖ CẦN SỬA 2: Xóa hoặc comment dòng setActiveTab("template") dưới đây
     // để giữ nguyên sidebar ở tab "Thành phần" khi thêm block mới thành công
     // setActiveTab("template");
 
     setTimeout(() => {
-      document.getElementById(`block-${newBlock.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document
+        .getElementById(`block-${newBlock.id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }, 150);
   };
 
@@ -729,7 +804,11 @@ export default function CreatePortfolio() {
       };
 
       if (isEditMode && id) {
-        await portfolioService.updatePortfolioAPI(Number(id), portfolioData, accessToken);
+        await portfolioService.updatePortfolioAPI(
+          Number(id),
+          portfolioData,
+          accessToken,
+        );
         notify.success("Hồ sơ đã được cập nhật thành công!");
       } else {
         await portfolioService.createPortfolioAPI(portfolioData, accessToken);
@@ -762,7 +841,6 @@ export default function CreatePortfolio() {
 
   // ── Template apply ─────────────────────────────────────────────────────────
 
-
   const handleVariantSelect = (variant: string) => {
     if (!selectedBlockTypeForVariant) return;
     addBlockFromCatalog(selectedBlockTypeForVariant, variant);
@@ -774,7 +852,9 @@ export default function CreatePortfolio() {
 
   const renderBlockEditor = useCallback(
     (block: PortfolioBlock) => {
-      const blockType = normalizeBlockType(block.type) as ExtendedEditorBlockType;
+      const blockType = normalizeBlockType(
+        block.type,
+      ) as ExtendedEditorBlockType;
       const variant = block.variant.toUpperCase();
       const rawData = block.data;
       const resetKey = blockResetKeys[block.id] ?? 0;
@@ -784,16 +864,12 @@ export default function CreatePortfolio() {
         updateBlockDataById(block.id, updater);
       };
 
-      const scopedArrayRemover = (index: number) => {
-        updateBlockDataById(block.id, (current) => {
-          const arr = toRecordArray(current);
-          return arr.filter((_, i) => i !== index);
-        });
-      };
-
       const handleSaveWrapper = (updatedData: unknown) => {
         updateBlockDataById(block.id, () => updatedData);
-        setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+        setBlockResetKeys((prev) => ({
+          ...prev,
+          [block.id]: (prev[block.id] ?? 0) + 1,
+        }));
         setOpenEditorBlockId(null);
       };
 
@@ -806,9 +882,13 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroOneDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName, name: draft.fullName,
-                studyField: draft.studyField, email: draft.email,
-                phone: draft.phone, description: draft.description, avatar: draft.avatar,
+                fullName: draft.fullName,
+                name: draft.fullName,
+                studyField: draft.studyField,
+                email: draft.email,
+                phone: draft.phone,
+                description: draft.description,
+                avatar: draft.avatar,
               });
             }}
             onCancel={() => setOpenEditorBlockId(null)}
@@ -824,11 +904,16 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroTwoDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName, name: draft.fullName,
-                position: draft.position, title: draft.position,
-                yearOfStudy: draft.yearOfStudy, school: draft.school,
-                studyField: draft.studyField, email: draft.email,
-                phoneNumber: draft.phoneNumber, phone: draft.phoneNumber,
+                fullName: draft.fullName,
+                name: draft.fullName,
+                position: draft.position,
+                title: draft.position,
+                yearOfStudy: draft.yearOfStudy,
+                school: draft.school,
+                studyField: draft.studyField,
+                email: draft.email,
+                phoneNumber: draft.phoneNumber,
+                phone: draft.phoneNumber,
                 avatar: draft.avatar,
               });
             }}
@@ -845,10 +930,14 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroThreeDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName, name: draft.fullName,
-                school: draft.school, department: draft.department,
-                studyField: draft.studyField, title: draft.studyField,
-                gpa: draft.gpa, avatar: draft.avatar,
+                fullName: draft.fullName,
+                name: draft.fullName,
+                school: draft.school,
+                department: draft.department,
+                studyField: draft.studyField,
+                title: draft.studyField,
+                gpa: draft.gpa,
+                avatar: draft.avatar,
               });
             }}
             onCancel={() => setOpenEditorBlockId(null)}
@@ -864,10 +953,14 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroFourDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName, name: draft.fullName,
-                school: draft.school, department: draft.department,
-                studyField: draft.studyField, title: draft.studyField,
-                gpa: draft.gpa, avatar: draft.avatar,
+                fullName: draft.fullName,
+                name: draft.fullName,
+                school: draft.school,
+                department: draft.department,
+                studyField: draft.studyField,
+                title: draft.studyField,
+                gpa: draft.gpa,
+                avatar: draft.avatar,
               });
             }}
             onCancel={() => setOpenEditorBlockId(null)}
@@ -883,10 +976,14 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: IntroFiveDraft) => {
               handleSaveWrapper({
-                fullName: draft.fullName, name: draft.fullName,
-                school: draft.school, department: draft.department,
-                experience: draft.experience, avatar: draft.avatar,
-                studyField: draft.studyField, title: draft.title,
+                fullName: draft.fullName,
+                name: draft.fullName,
+                school: draft.school,
+                department: draft.department,
+                experience: draft.experience,
+                avatar: draft.avatar,
+                studyField: draft.studyField,
+                title: draft.title,
               });
             }}
             onCancel={() => setOpenEditorBlockId(null)}
@@ -916,7 +1013,11 @@ export default function CreatePortfolio() {
             key={editorKey}
             initialData={initialData}
             onSave={(draft: SkillTwoDraft) => {
-              handleSaveWrapper({ languages: draft.languages, frameworks: draft.frameworks, tools: draft.tools });
+              handleSaveWrapper({
+                languages: draft.languages,
+                frameworks: draft.frameworks,
+                tools: draft.tools,
+              });
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -931,9 +1032,15 @@ export default function CreatePortfolio() {
             onSave={(draft: SkillThreeDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, { name: draft.name, description: draft.description }];
+                return [
+                  ...items,
+                  { name: draft.name, description: draft.description },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -942,7 +1049,9 @@ export default function CreatePortfolio() {
 
       // ── EDUCATION ──────────────────────────────────────────────────────
       if (blockType === "EDUCATION" && variant === "EDUCATIONONE") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createEducationOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createEducationOneDraft(item))
+          : [];
         const initialData = createEducationOneDraft(rawData);
         return (
           <EducationOneEditor
@@ -952,23 +1061,38 @@ export default function CreatePortfolio() {
             onSave={(draft: EducationOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  schoolName: draft.schoolName, school: draft.schoolName,
-                  startTime: draft.startTime, endTime: draft.isCurrent ? "" : draft.endTime, department: draft.department,
-                  major: draft.department, certificate: draft.certificate,
-                  description: draft.description,
-                }];
+                return [
+                  ...items,
+                  {
+                    schoolName: draft.schoolName,
+                    school: draft.schoolName,
+                    startTime: draft.startTime,
+                    endTime: draft.isCurrent ? "" : draft.endTime,
+                    department: draft.department,
+                    major: draft.department,
+                    certificate: draft.certificate,
+                    description: draft.description,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: EducationOneDraft[]) => {
-              handleSaveWrapper(list.map((e) => ({
-                schoolName: e.schoolName, school: e.schoolName,
-                startTime: e.startTime,
-                endTime: e.isCurrent ? "" : e.endTime, department: e.department,
-                major: e.department, certificate: e.certificate,
-                description: e.description,
-              })));
+              handleSaveWrapper(
+                list.map((e) => ({
+                  schoolName: e.schoolName,
+                  school: e.schoolName,
+                  startTime: e.startTime,
+                  endTime: e.isCurrent ? "" : e.endTime,
+                  department: e.department,
+                  major: e.department,
+                  certificate: e.certificate,
+                  description: e.description,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -984,12 +1108,20 @@ export default function CreatePortfolio() {
             onSave={(draft: EducationTwoDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  time: draft.time, department: draft.department,
-                  schoolName: draft.schoolName, description: draft.description,
-                }];
+                return [
+                  ...items,
+                  {
+                    time: draft.time,
+                    department: draft.department,
+                    schoolName: draft.schoolName,
+                    description: draft.description,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1006,12 +1138,20 @@ export default function CreatePortfolio() {
             onSave={(draft: EducationThreeDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  time: draft.time, gpa: draft.gpa,
-                  qualified: draft.qualified, description: draft.description,
-                }];
+                return [
+                  ...items,
+                  {
+                    time: draft.time,
+                    gpa: draft.gpa,
+                    qualified: draft.qualified,
+                    description: draft.description,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1020,33 +1160,59 @@ export default function CreatePortfolio() {
 
       // ── EXPERIMENT ─────────────────────────────────────────────────────
       if (blockType === "EXPERIMENT" && variant === "EXPERIMENTONE") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createExperienceOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createExperienceOneDraft(item))
+          : [];
         const initialData = createExperienceOneDraft(rawData);
         return (
           <ExperienceOneEditor
             key={editorKey}
             initialData={initialData}
-            existingItems={listData}
+            initialList={listData}
             onSave={(draft: ExperienceOneDraft) => {
-              const { startDate, endDate } = splitExperienceOneTimeRange(draft.time);
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  jobName: draft.jobName, address: draft.address,
-                  startDate, endDate, time: draft.time, description: draft.description,
-                }];
+                return [
+                  ...items,
+                  {
+                    jobName: draft.jobName,
+                    address: draft.address,
+                    startDate: draft.startDate,
+                    endDate: draft.isCurrent ? "" : draft.endDate,
+                    isCurrent: draft.isCurrent,
+                    time: composeExperienceOneTime(draft),
+                    description: draft.description,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
+            }}
+            onSaveList={(list: ExperienceOneDraft[]) => {
+              handleSaveWrapper(
+                list.map((e) => ({
+                  jobName: e.jobName,
+                  address: e.address,
+                  startDate: e.startDate,
+                  endDate: e.isCurrent ? "" : e.endDate,
+                  isCurrent: e.isCurrent,
+                  time: composeExperienceOneTime(e),
+                  description: e.description,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
-            onDeleteItem={scopedArrayRemover}
           />
         );
       }
 
       // ── PROJECT ────────────────────────────────────────────────────────
       if (blockType === "PROJECT" && variant === "PROJECTONE") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createProjectOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createProjectOneDraft(item))
+          : [];
         const initialData = createProjectOneDraft(rawData);
         const buildProjectLinks = (p: ProjectOneDraft) =>
           [
@@ -1065,19 +1231,39 @@ export default function CreatePortfolio() {
               const projectLinks = buildProjectLinks(draft);
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  image: draft.image, name: draft.name,
-                  description: draft.description, role: draft.role,
-                  technology: draft.technology, projectLinks, links: projectLinks,
-                }];
+                return [
+                  ...items,
+                  {
+                    image: draft.image,
+                    name: draft.name,
+                    description: draft.description,
+                    role: draft.role,
+                    technology: draft.technology,
+                    projectLinks,
+                    links: projectLinks,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: ProjectOneDraft[]) => {
-              handleSaveWrapper(list.map((p) => {
-                const projectLinks = buildProjectLinks(p);
-                return { image: p.image, name: p.name, description: p.description, role: p.role, technology: p.technology, projectLinks, links: projectLinks };
-              }));
+              handleSaveWrapper(
+                list.map((p) => {
+                  const projectLinks = buildProjectLinks(p);
+                  return {
+                    image: p.image,
+                    name: p.name,
+                    description: p.description,
+                    role: p.role,
+                    technology: p.technology,
+                    projectLinks,
+                    links: projectLinks,
+                  };
+                }),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1092,16 +1278,26 @@ export default function CreatePortfolio() {
             initialData={initialData}
             onSave={(draft: ProjectTwoDraft) => {
               const normalizedLink = draft.link.trim();
-              const linkItems = normalizedLink.length > 0 ? [{ link: normalizedLink }] : [];
+              const linkItems =
+                normalizedLink.length > 0 ? [{ link: normalizedLink }] : [];
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  name: draft.name, action: draft.action,
-                  publisher: draft.publisher, description: draft.description,
-                  projectLinks: linkItems, links: linkItems,
-                }];
+                return [
+                  ...items,
+                  {
+                    name: draft.name,
+                    action: draft.action,
+                    publisher: draft.publisher,
+                    description: draft.description,
+                    projectLinks: linkItems,
+                    links: linkItems,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1116,16 +1312,26 @@ export default function CreatePortfolio() {
             initialData={initialData ?? createEmptyProjectThreeDraft()}
             onSave={(draft: ProjectThreeDraft) => {
               const normalizedLink = draft.link.trim();
-              const linkItems = normalizedLink.length > 0 ? [{ link: normalizedLink }] : [];
+              const linkItems =
+                normalizedLink.length > 0 ? [{ link: normalizedLink }] : [];
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  name: draft.name, action: draft.action,
-                  publisher: draft.publisher, description: draft.description,
-                  projectLinks: linkItems, links: linkItems,
-                }];
+                return [
+                  ...items,
+                  {
+                    name: draft.name,
+                    action: draft.action,
+                    publisher: draft.publisher,
+                    description: draft.description,
+                    projectLinks: linkItems,
+                    links: linkItems,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1134,7 +1340,9 @@ export default function CreatePortfolio() {
 
       // ── AWARD ──────────────────────────────────────────────────────────
       if (blockType === "AWARD" && variant === "AWARDONE") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createAwardOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createAwardOneDraft(item))
+          : [];
         const initialData = createAwardOneDraft(rawData);
         return (
           <AwardEditor
@@ -1144,20 +1352,34 @@ export default function CreatePortfolio() {
             onSave={(draft: AwardOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  name: draft.name, date: draft.date, time: draft.date,
-                  organization: draft.organization, issuer: draft.organization,
-                  description: draft.description,
-                }];
+                return [
+                  ...items,
+                  {
+                    name: draft.name,
+                    date: draft.date,
+                    time: draft.date,
+                    organization: draft.organization,
+                    issuer: draft.organization,
+                    description: draft.description,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: AwardOneDraft[]) => {
-              handleSaveWrapper(list.map((a) => ({
-                name: a.name, date: a.date, time: a.date,
-                organization: a.organization, issuer: a.organization,
-                description: a.description,
-              })));
+              handleSaveWrapper(
+                list.map((a) => ({
+                  name: a.name,
+                  date: a.date,
+                  time: a.date,
+                  organization: a.organization,
+                  issuer: a.organization,
+                  description: a.description,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1166,7 +1388,9 @@ export default function CreatePortfolio() {
 
       // ── ACTIVITIES ─────────────────────────────────────────────────────
       if (blockType === "ACTIVITIES") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createActivityOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createActivityOneDraft(item))
+          : [];
         const initialData = createActivityOneDraft(rawData);
         return (
           <ActivityOneEditor
@@ -1176,17 +1400,30 @@ export default function CreatePortfolio() {
             onSave={(draft: ActivityOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  name: draft.name, date: draft.date, time: draft.date,
-                  description: draft.description,
-                }];
+                return [
+                  ...items,
+                  {
+                    name: draft.name,
+                    date: draft.date,
+                    time: draft.date,
+                    description: draft.description,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: ActivityOneDraft[]) => {
-              handleSaveWrapper(list.map((a) => ({
-                name: a.name, date: a.date, time: a.date, description: a.description,
-              })));
+              handleSaveWrapper(
+                list.map((a) => ({
+                  name: a.name,
+                  date: a.date,
+                  time: a.date,
+                  description: a.description,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1201,14 +1438,19 @@ export default function CreatePortfolio() {
             key={editorKey}
             initialData={initialData}
             onSave={(draft: OtherInfoOneDraft) => {
-              handleSaveWrapper(draft.interests.map((name) => ({ detail: name })));
+              handleSaveWrapper(
+                draft.interests.map((name) => ({ detail: name })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
         );
       }
 
-      if (blockType === "OTHERINFO" && ["OTHERTWO", "OTHERTHREE", "OTHERFOUR"].includes(variant)) {
+      if (
+        blockType === "OTHERINFO" &&
+        ["OTHERTWO", "OTHERTHREE", "OTHERFOUR"].includes(variant)
+      ) {
         const initialData = createOtherInfoTwoDraft(rawData);
         return (
           <OtherInfoTwoEditor
@@ -1261,7 +1503,10 @@ export default function CreatePortfolio() {
                 const items = toRecordArray(current);
                 return [...items, { name: draft.name, detail: draft.detail }];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1284,7 +1529,9 @@ export default function CreatePortfolio() {
 
       // ── REFERENCE ──────────────────────────────────────────────────────
       if (blockType === "REFERENCE" && variant === "REFERENCEONE") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createReferenceOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createReferenceOneDraft(item))
+          : [];
         const initialData = createReferenceOneDraft(rawData);
         return (
           <ReferenceEditor
@@ -1294,20 +1541,34 @@ export default function CreatePortfolio() {
             onSave={(draft: ReferenceOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  name: draft.name, position: draft.position,
-                  mail: draft.email, email: draft.email,
-                  phone: draft.contactInfo, detail: draft.contactInfo,
-                }];
+                return [
+                  ...items,
+                  {
+                    name: draft.name,
+                    position: draft.position,
+                    mail: draft.email,
+                    email: draft.email,
+                    phone: draft.contactInfo,
+                    detail: draft.contactInfo,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: ReferenceOneDraft[]) => {
-              handleSaveWrapper(list.map((r) => ({
-                name: r.name, position: r.position,
-                mail: r.email, email: r.email,
-                phone: r.contactInfo, detail: r.contactInfo,
-              })));
+              handleSaveWrapper(
+                list.map((r) => ({
+                  name: r.name,
+                  position: r.position,
+                  mail: r.email,
+                  email: r.email,
+                  phone: r.contactInfo,
+                  detail: r.contactInfo,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1316,7 +1577,9 @@ export default function CreatePortfolio() {
 
       // ── DIPLOMA ────────────────────────────────────────────────────────
       if (blockType === "DIPLOMA" && variant === "DIPLOMAONE") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createCertificateOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createCertificateOneDraft(item))
+          : [];
         const initialData = createCertificateOneDraft(rawData);
         return (
           <CertificateOneEditor
@@ -1326,19 +1589,34 @@ export default function CreatePortfolio() {
             onSave={(draft: CertificateOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  name: draft.name, issuer: draft.issuer,
-                  provider: draft.issuer, year: draft.year,
-                  date: draft.year, link: draft.link,
-                }];
+                return [
+                  ...items,
+                  {
+                    name: draft.name,
+                    issuer: draft.issuer,
+                    provider: draft.issuer,
+                    year: draft.year,
+                    date: draft.year,
+                    link: draft.link,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: CertificateOneDraft[]) => {
-              handleSaveWrapper(list.map((c) => ({
-                name: c.name, issuer: c.issuer, provider: c.issuer,
-                year: c.year, date: c.year, link: c.link,
-              })));
+              handleSaveWrapper(
+                list.map((c) => ({
+                  name: c.name,
+                  issuer: c.issuer,
+                  provider: c.issuer,
+                  year: c.year,
+                  date: c.year,
+                  link: c.link,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1347,7 +1625,9 @@ export default function CreatePortfolio() {
 
       // ── RESEARCH ───────────────────────────────────────────────────────
       if (blockType === "RESEARCH" && variant === "RESEARCHONE") {
-        const listData = Array.isArray(rawData) ? rawData.map((item) => createResearchOneDraft(item)) : [];
+        const listData = Array.isArray(rawData)
+          ? rawData.map((item) => createResearchOneDraft(item))
+          : [];
         const initialData = createResearchOneDraft(rawData);
         return (
           <ResearchOneEditor
@@ -1357,19 +1637,32 @@ export default function CreatePortfolio() {
             onSave={(draft: ResearchOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  name: draft.title, time: draft.date,
-                  description: draft.conference, link: draft.link,
-                  conference: draft.conference,
-                }];
+                return [
+                  ...items,
+                  {
+                    name: draft.title,
+                    time: draft.date,
+                    description: draft.conference,
+                    link: draft.link,
+                    conference: draft.conference,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: ResearchOneDraft[]) => {
-              handleSaveWrapper(list.map((r) => ({
-                name: r.title, time: r.date, description: r.conference,
-                link: r.link, conference: r.conference,
-              })));
+              handleSaveWrapper(
+                list.map((r) => ({
+                  name: r.title,
+                  time: r.date,
+                  description: r.conference,
+                  link: r.link,
+                  conference: r.conference,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1382,7 +1675,10 @@ export default function CreatePortfolio() {
           ? rawData.map((item) => {
               if (item && typeof item === "object") {
                 const r = item as Record<string, unknown>;
-                return { subject: toText(r.subject), teachingplace: toText(r.teachingplace) };
+                return {
+                  subject: toText(r.subject),
+                  teachingplace: toText(r.teachingplace),
+                };
               }
               return createEmptyTeachingOneDraft();
             })
@@ -1395,12 +1691,26 @@ export default function CreatePortfolio() {
             onSave={(draft: TeachingOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, { subject: draft.subject, teachingplace: draft.teachingplace }];
+                return [
+                  ...items,
+                  {
+                    subject: draft.subject,
+                    teachingplace: draft.teachingplace,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: TeachingOneDraft[]) => {
-              handleSaveWrapper(list.map((t) => ({ subject: t.subject, teachingplace: t.teachingplace })));
+              handleSaveWrapper(
+                list.map((t) => ({
+                  subject: t.subject,
+                  teachingplace: t.teachingplace,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1414,8 +1724,10 @@ export default function CreatePortfolio() {
               if (item && typeof item === "object") {
                 const r = item as Record<string, unknown>;
                 return {
-                  patient: toText(r.patient), age: toText(r.age),
-                  caseName: toText(r.caseName), stage: toText(r.stage),
+                  patient: toText(r.patient),
+                  age: toText(r.age),
+                  caseName: toText(r.caseName),
+                  stage: toText(r.stage),
                   regiment: toText(r.regiment),
                 };
               }
@@ -1430,20 +1742,32 @@ export default function CreatePortfolio() {
             onSave={(draft: TypicalCaseOneDraft) => {
               scopedUpdate((current) => {
                 const items = toRecordArray(current);
-                return [...items, {
-                  patient: draft.patient, age: draft.age,
-                  caseName: draft.caseName, stage: draft.stage,
-                  regiment: draft.regiment,
-                }];
+                return [
+                  ...items,
+                  {
+                    patient: draft.patient,
+                    age: draft.age,
+                    caseName: draft.caseName,
+                    stage: draft.stage,
+                    regiment: draft.regiment,
+                  },
+                ];
               });
-              setBlockResetKeys((prev) => ({ ...prev, [block.id]: (prev[block.id] ?? 0) + 1 }));
+              setBlockResetKeys((prev) => ({
+                ...prev,
+                [block.id]: (prev[block.id] ?? 0) + 1,
+              }));
             }}
             onSaveList={(list: TypicalCaseOneDraft[]) => {
-              handleSaveWrapper(list.map((c) => ({
-                patient: c.patient, age: c.age,
-                caseName: c.caseName, stage: c.stage,
-                regiment: c.regiment,
-              })));
+              handleSaveWrapper(
+                list.map((c) => ({
+                  patient: c.patient,
+                  age: c.age,
+                  caseName: c.caseName,
+                  stage: c.stage,
+                  regiment: c.regiment,
+                })),
+              );
             }}
             onCancel={() => setOpenEditorBlockId(null)}
           />
@@ -1529,7 +1853,6 @@ export default function CreatePortfolio() {
 
           {/* 2-column layout: sidebar left + preview center */}
           <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] items-start">
-
             {/* ── Left sidebar ─────────────────────────────────────────────── */}
             <aside className="rounded-2xl border border-slate-200 bg-white sticky top-4">
               {/* Tab bar */}
@@ -1563,20 +1886,26 @@ export default function CreatePortfolio() {
                 </button>
               </div>
 
-              <div className={cn(
-                "p-3",
-                activeTab === "component" && "max-h-[calc(100vh-160px)] overflow-y-auto",
-              )}>
-
+              <div
+                className={cn(
+                  "p-3",
+                  activeTab === "component" &&
+                    "max-h-[calc(100vh-160px)] overflow-y-auto",
+                )}
+              >
                 {/* ── Template tab ─────────────────────────────────────────── */}
                 {!isEditMode && activeTab === "template" && (
                   <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center">
                     <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-blue-100">
                       <Sparkles size={18} className="text-blue-500" />
                     </div>
-                    <p className="text-sm font-semibold text-slate-700">Các mẫu thiết kế mới</p>
+                    <p className="text-sm font-semibold text-slate-700">
+                      Các mẫu thiết kế mới
+                    </p>
                     <p className="mt-1.5 text-xs text-slate-500 leading-relaxed">
-                      Sẽ xuất hiện trong tương lai.<br />Hãy theo dõi cập nhật!
+                      Sẽ xuất hiện trong tương lai.
+                      <br />
+                      Hãy theo dõi cập nhật!
                     </p>
                   </div>
                 )}
@@ -1596,7 +1925,9 @@ export default function CreatePortfolio() {
                           Blocks trong hồ sơ ({blocks.length})
                         </p>
                         {blocks.map((block) => {
-                          const blockInfo = getBlockInfo(normalizeBlockType(block.type));
+                          const blockInfo = getBlockInfo(
+                            normalizeBlockType(block.type),
+                          );
                           const BlockIcon = blockInfo?.icon;
                           const empty = isBlockDataEmpty(block.data);
                           return (
@@ -1611,24 +1942,40 @@ export default function CreatePortfolio() {
                                   : "border-slate-200 hover:border-blue-300 hover:bg-blue-50",
                               )}
                             >
-                              <div className={cn(
-                                "rounded-lg p-1.5 shrink-0",
-                                empty ? "bg-slate-100 text-slate-400" : "bg-blue-100 text-blue-600",
-                              )}>
-                                {BlockIcon ? <BlockIcon size={14} /> : <Layers size={14} />}
+                              <div
+                                className={cn(
+                                  "rounded-lg p-1.5 shrink-0",
+                                  empty
+                                    ? "bg-slate-100 text-slate-400"
+                                    : "bg-blue-100 text-blue-600",
+                                )}
+                              >
+                                {BlockIcon ? (
+                                  <BlockIcon size={14} />
+                                ) : (
+                                  <Layers size={14} />
+                                )}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold text-slate-800 truncate">
-                                  {blockInfo?.label || BLOCK_LABELS[normalizeBlockType(block.type)] || block.type}
+                                  {blockInfo?.label ||
+                                    BLOCK_LABELS[
+                                      normalizeBlockType(block.type)
+                                    ] ||
+                                    block.type}
                                 </p>
-                                <p className="text-[10px] text-slate-400 truncate">{block.variant}</p>
+                                <p className="text-[10px] text-slate-400 truncate">
+                                  {block.variant}
+                                </p>
                               </div>
-                              <span className={cn(
-                                "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
-                                empty
-                                  ? "bg-slate-100 text-slate-500"
-                                  : "bg-emerald-100 text-emerald-700",
-                              )}>
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold",
+                                  empty
+                                    ? "bg-slate-100 text-slate-500"
+                                    : "bg-emerald-100 text-emerald-700",
+                                )}
+                              >
                                 {empty ? "Trống" : "Đã có"}
                               </span>
                             </button>
@@ -1649,7 +1996,9 @@ export default function CreatePortfolio() {
 
                     {getOrderedBlockCatalog().map((blockItem) => {
                       const isAllowed =
-                        isEditMode || !activeTemplateId || allowedBlockTypes.has(blockItem.type);
+                        isEditMode ||
+                        !activeTemplateId ||
+                        allowedBlockTypes.has(blockItem.type);
                       const BlockIcon = blockItem.icon;
 
                       return (
@@ -1677,8 +2026,12 @@ export default function CreatePortfolio() {
                               <BlockIcon size={16} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-slate-800">{blockItem.label}</p>
-                              <p className="mt-0.5 text-xs text-slate-500">{blockItem.description}</p>
+                              <p className="text-sm font-semibold text-slate-800">
+                                {blockItem.label}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                {blockItem.description}
+                              </p>
                             </div>
                           </button>
 
@@ -1686,95 +2039,191 @@ export default function CreatePortfolio() {
                           {blockItem.type === "REFERENCE" && (
                             <>
                               {[
-                                { variant: "OTHERONE", icon: Lightbulb, color: "indigo", label: "Sở thích cá nhân", desc: "Tag các hoạt động yêu thích" },
-                                { variant: "OTHERTWO", icon: Briefcase, color: "blue", label: "Mục tiêu nghề nghiệp", desc: "Mục tiêu dài hạn mô tả chi tiết" },
-                                { variant: "OTHERTHREE", icon: Target, color: "purple", label: "Tầm nhìn và động lực", desc: "Tầm nhìn dài hạn và động lực" },
-                                { variant: "OTHERFIVE", icon: Lightbulb, color: "purple", label: "Lĩnh vực nghiên cứu", desc: "Các lĩnh vực chuyên môn" },
-                              ].map(({ variant, icon: Icon, color, label, desc }) => {
-                                const otherAllowed = isEditMode || !activeTemplateId || allowedBlockTypes.has("OTHERINFO");
-                                return (
-                                  <button
-                                    key={variant}
-                                    type="button"
-                                    onClick={() => otherAllowed && addBlockFromCatalog("OTHERINFO", variant)}
-                                    disabled={!otherAllowed}
-                                    className={cn(
-                                      "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
-                                      otherAllowed
-                                        ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                        : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
-                                    )}
-                                  >
-                                    <div className={`mt-0.5 rounded-lg bg-${color}-100 p-1.5 text-${color}-600`}>
-                                      <Icon size={16} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-semibold text-slate-800">{label}</p>
-                                      <p className="mt-0.5 text-xs text-slate-500">{desc}</p>
-                                    </div>
-                                  </button>
-                                );
-                              })}
+                                {
+                                  variant: "OTHERONE",
+                                  icon: Lightbulb,
+                                  color: "indigo",
+                                  label: "Sở thích cá nhân",
+                                  desc: "Tag các hoạt động yêu thích",
+                                },
+                                {
+                                  variant: "OTHERTWO",
+                                  icon: Briefcase,
+                                  color: "blue",
+                                  label: "Mục tiêu nghề nghiệp",
+                                  desc: "Mục tiêu dài hạn mô tả chi tiết",
+                                },
+                                {
+                                  variant: "OTHERTHREE",
+                                  icon: Target,
+                                  color: "purple",
+                                  label: "Tầm nhìn và động lực",
+                                  desc: "Tầm nhìn dài hạn và động lực",
+                                },
+                                {
+                                  variant: "OTHERFIVE",
+                                  icon: Lightbulb,
+                                  color: "purple",
+                                  label: "Lĩnh vực nghiên cứu",
+                                  desc: "Các lĩnh vực chuyên môn",
+                                },
+                              ].map(
+                                ({
+                                  variant,
+                                  icon: Icon,
+                                  color,
+                                  label,
+                                  desc,
+                                }) => {
+                                  const otherAllowed =
+                                    isEditMode ||
+                                    !activeTemplateId ||
+                                    allowedBlockTypes.has("OTHERINFO");
+                                  return (
+                                    <button
+                                      key={variant}
+                                      type="button"
+                                      onClick={() =>
+                                        otherAllowed &&
+                                        addBlockFromCatalog(
+                                          "OTHERINFO",
+                                          variant,
+                                        )
+                                      }
+                                      disabled={!otherAllowed}
+                                      className={cn(
+                                        "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
+                                        otherAllowed
+                                          ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                                          : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
+                                      )}
+                                    >
+                                      <div
+                                        className={`mt-0.5 rounded-lg bg-${color}-100 p-1.5 text-${color}-600`}
+                                      >
+                                        <Icon size={16} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-slate-800">
+                                          {label}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-slate-500">
+                                          {desc}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                },
+                              )}
                             </>
                           )}
 
                           {blockItem.type === "RESEARCH" && (
                             <>
                               {[
-                                { variant: "OTHERSIX", icon: Users, color: "cyan", label: "Kỹ năng mềm", desc: "Kỹ năng giao tiếp, lãnh đạo..." },
-                                { variant: "OTHERSEVEN", icon: FileText, color: "cyan", label: "Tài liệu bổ sung", desc: "Link, tài liệu tham khảo..." },
-                              ].map(({ variant, icon: Icon, color, label, desc }) => {
-                                const otherAllowed = isEditMode || !activeTemplateId || allowedBlockTypes.has("OTHERINFO");
-                                return (
-                                  <button
-                                    key={variant}
-                                    type="button"
-                                    onClick={() => otherAllowed && addBlockFromCatalog("OTHERINFO", variant)}
-                                    disabled={!otherAllowed}
-                                    className={cn(
-                                      "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
-                                      otherAllowed
-                                        ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                        : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
-                                    )}
-                                  >
-                                    <div className={`mt-0.5 rounded-lg bg-${color}-100 p-1.5 text-${color}-600`}>
-                                      <Icon size={16} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-semibold text-slate-800">{label}</p>
-                                      <p className="mt-0.5 text-xs text-slate-500">{desc}</p>
-                                    </div>
-                                  </button>
-                                );
-                              })}
+                                {
+                                  variant: "OTHERSIX",
+                                  icon: Users,
+                                  color: "cyan",
+                                  label: "Kỹ năng mềm",
+                                  desc: "Kỹ năng giao tiếp, lãnh đạo...",
+                                },
+                                {
+                                  variant: "OTHERSEVEN",
+                                  icon: FileText,
+                                  color: "cyan",
+                                  label: "Tài liệu bổ sung",
+                                  desc: "Link, tài liệu tham khảo...",
+                                },
+                              ].map(
+                                ({
+                                  variant,
+                                  icon: Icon,
+                                  color,
+                                  label,
+                                  desc,
+                                }) => {
+                                  const otherAllowed =
+                                    isEditMode ||
+                                    !activeTemplateId ||
+                                    allowedBlockTypes.has("OTHERINFO");
+                                  return (
+                                    <button
+                                      key={variant}
+                                      type="button"
+                                      onClick={() =>
+                                        otherAllowed &&
+                                        addBlockFromCatalog(
+                                          "OTHERINFO",
+                                          variant,
+                                        )
+                                      }
+                                      disabled={!otherAllowed}
+                                      className={cn(
+                                        "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
+                                        otherAllowed
+                                          ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                                          : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
+                                      )}
+                                    >
+                                      <div
+                                        className={`mt-0.5 rounded-lg bg-${color}-100 p-1.5 text-${color}-600`}
+                                      >
+                                        <Icon size={16} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold text-slate-800">
+                                          {label}
+                                        </p>
+                                        <p className="mt-0.5 text-xs text-slate-500">
+                                          {desc}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  );
+                                },
+                              )}
                             </>
                           )}
 
-                          {blockItem.type === "TYPICALCASE" && (() => {
-                            const otherAllowed = isEditMode || !activeTemplateId || allowedBlockTypes.has("OTHERINFO");
-                            return (
-                              <button
-                                type="button"
-                                onClick={() => otherAllowed && addBlockFromCatalog("OTHERINFO", "OTHEREIGHT")}
-                                disabled={!otherAllowed}
-                                className={cn(
-                                  "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
-                                  otherAllowed
-                                    ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
-                                    : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
-                                )}
-                              >
-                                <div className="mt-0.5 rounded-lg bg-orange-100 p-1.5 text-orange-600">
-                                  <ScrollText size={16} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-slate-800">Giấy phép hành nghề</p>
-                                  <p className="mt-0.5 text-xs text-slate-500">Số hiệu, nơi cấp, ngày cấp...</p>
-                                </div>
-                              </button>
-                            );
-                          })()}
+                          {blockItem.type === "TYPICALCASE" &&
+                            (() => {
+                              const otherAllowed =
+                                isEditMode ||
+                                !activeTemplateId ||
+                                allowedBlockTypes.has("OTHERINFO");
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    otherAllowed &&
+                                    addBlockFromCatalog(
+                                      "OTHERINFO",
+                                      "OTHEREIGHT",
+                                    )
+                                  }
+                                  disabled={!otherAllowed}
+                                  className={cn(
+                                    "w-full rounded-xl border px-3 py-2.5 text-left transition-colors flex items-start gap-3",
+                                    otherAllowed
+                                      ? "border-slate-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer"
+                                      : "border-slate-200 bg-slate-50 opacity-50 cursor-not-allowed",
+                                  )}
+                                >
+                                  <div className="mt-0.5 rounded-lg bg-orange-100 p-1.5 text-orange-600">
+                                    <ScrollText size={16} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-semibold text-slate-800">
+                                      Giấy phép hành nghề
+                                    </p>
+                                    <p className="mt-0.5 text-xs text-slate-500">
+                                      Số hiệu, nơi cấp, ngày cấp...
+                                    </p>
+                                  </div>
+                                </button>
+                              );
+                            })()}
                         </div>
                       );
                     })}
@@ -1785,7 +2234,6 @@ export default function CreatePortfolio() {
 
             {/* ── Center preview (full width, inline editing) ──────────────── */}
             <main className="rounded-2xl border border-slate-200 bg-white">
-
               {/* Minimal hint bar */}
               {blocks.length > 0 && (
                 <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-2">
@@ -1805,19 +2253,28 @@ export default function CreatePortfolio() {
                           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-100">
                             <Layers size={22} className="text-blue-500" />
                           </div>
-                          <h2 className="text-lg font-bold text-slate-700">Bắt đầu tạo hồ sơ</h2>
+                          <h2 className="text-lg font-bold text-slate-700">
+                            Bắt đầu tạo hồ sơ
+                          </h2>
                           <p className="mt-2 text-sm text-slate-500">
                             Chọn một template ở tab{" "}
-                            <span className="font-semibold text-slate-700">"Thiết kế mẫu"</span>{" "}
+                            <span className="font-semibold text-slate-700">
+                              "Thiết kế mẫu"
+                            </span>{" "}
                             hoặc thêm thành phần từ tab{" "}
-                            <span className="font-semibold text-slate-700">"Thành phần"</span>
+                            <span className="font-semibold text-slate-700">
+                              "Thành phần"
+                            </span>
                           </p>
                         </>
                       ) : (
                         <>
-                          <h2 className="text-lg font-bold text-slate-700">Portfolio đang trống</h2>
+                          <h2 className="text-lg font-bold text-slate-700">
+                            Portfolio đang trống
+                          </h2>
                           <p className="mt-2 text-sm text-slate-500">
-                            Thêm block từ tab "Thành phần" ở bên trái để bắt đầu.
+                            Thêm block từ tab "Thành phần" ở bên trái để bắt
+                            đầu.
                           </p>
                         </>
                       )}
@@ -1838,7 +2295,9 @@ export default function CreatePortfolio() {
                           isEmpty={isEmpty}
                           isOpen={isOpen}
                           onToggle={() =>
-                            setOpenEditorBlockId((prev) => (prev === block.id ? null : block.id))
+                            setOpenEditorBlockId((prev) =>
+                              prev === block.id ? null : block.id,
+                            )
                           }
                           onClear={() => clearBlockData(block.id)}
                           editor={editor}
@@ -1848,7 +2307,9 @@ export default function CreatePortfolio() {
                             <div className="flex min-h-[72px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60 px-4 py-4 text-center">
                               <div>
                                 <p className="text-xs font-semibold text-slate-400">
-                                  {BLOCK_LABELS[normalizeBlockType(block.type)] || block.type}
+                                  {BLOCK_LABELS[
+                                    normalizeBlockType(block.type)
+                                  ] || block.type}
                                 </p>
                                 <p className="mt-0.5 text-[11px] text-slate-300">
                                   Chưa có nội dung

@@ -116,6 +116,8 @@ export type ExperienceItem = {
   address: string;
   startDate: string;
   endDate: string;
+  isCurrent?: boolean;
+  time: string;
   description?: string;
 };
 
