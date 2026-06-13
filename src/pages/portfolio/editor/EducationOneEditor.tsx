@@ -1,4 +1,4 @@
-import { Plus, Trash2, X, Calendar } from "lucide-react";
+import { Plus, Trash2, X, Calendar, AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { type EducationOneDraft } from "@/pages/portfolio/editor/educationOneDraft";
 
@@ -9,7 +9,12 @@ type EducationOneEditorProps = {
   onSaveList?: (educationList: EducationOneDraft[]) => void;
   onCancel: () => void;
 };
-
+const getCurrentMonth = (): string => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
 export default function EducationOneEditor({
   initialData,
   initialList = [],
@@ -17,6 +22,8 @@ export default function EducationOneEditor({
   onSaveList,
   onCancel,
 }: EducationOneEditorProps) {
+  const [error, setError] = useState<string | null>(null);
+  const currentMonth = getCurrentMonth();
   const [draft, setDraft] = useState<EducationOneDraft>(initialData);
   const [educationList, setEducationList] =
     useState<EducationOneDraft[]>(initialList);
@@ -34,10 +41,26 @@ export default function EducationOneEditor({
       [field]: value,
     }));
   };
+  const validateTimeRange = (): string | null => {
+    if (draft.startTime && draft.startTime > currentMonth) {
+      return "Thời gian bắt đầu không được ở tương lai.";
+    }
 
+    if (!draft.isCurrent && draft.startTime && draft.endTime) {
+      if (draft.startTime > draft.endTime) {
+        return "Thời gian bắt đầu phải nhỏ hơn thời gian kết thúc.";
+      }
+    }
+
+    return null;
+  };
   const handleAddEducation = () => {
     if (!hasContent) return;
-
+    const validationError = validateTimeRange();
+    if (validationError) {
+      setError(validationError);
+      return; // dừng lại, KHÔNG thêm vào list, KHÔNG gọi onSave/onSaveList
+    }
     const newEducation: EducationOneDraft = {
       schoolName: draft.schoolName.trim(),
       startTime: draft.startTime.trim(),
@@ -173,6 +196,7 @@ export default function EducationOneEditor({
             <input
               type="month"
               value={draft.startTime || ""}
+              max={currentMonth}
               onChange={(e) => updateDraftField("startTime", e.target.value)}
               className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8]"
             />
@@ -186,12 +210,19 @@ export default function EducationOneEditor({
             <input
               type="month"
               value={draft.isCurrent ? "" : draft.endTime || ""}
+              min= {draft.startTime || undefined}
               onChange={(e) => updateDraftField("endTime", e.target.value)}
               disabled={draft.isCurrent}
               className="h-10 w-full rounded-xl border border-[#d1d5db] bg-white px-3 text-sm text-slate-700 outline-none transition-colors focus:border-[#4A79E8] disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
         </div>
+        {error && (
+          <div className="flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+            <AlertCircle size={16} className="shrink-0" />
+            {error}
+          </div>
+        )}
 
         {/* Checkbox đang học */}
         <div className="flex items-center gap-2 pt-1">
