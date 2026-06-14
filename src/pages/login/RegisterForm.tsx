@@ -23,7 +23,7 @@ export const RegisterForm = () => {
   // Role configuration
   const roleConfig = {
     talent: {
-      label: "Người dùng",
+      label: "Ứng viên",
       roleValue: 1,
       emailLabel: "Email",
       emailPlaceholder: "example@gmail.com",
@@ -102,7 +102,7 @@ export const RegisterForm = () => {
                 : "bg-transparent text-slate-700 hover:text-slate-900"
             }`}
           >
-            Người dùng
+            Ứng viên
           </button>
           <button
             type="button"

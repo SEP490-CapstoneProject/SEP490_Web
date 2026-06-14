@@ -16,7 +16,14 @@ interface CreateChallengeFormProps {
 }
 
 interface FormData extends CreateChallengePayload {
-  deadlineDateTime: string; // For input[type="datetime-local"]
+  deadlineDateTime: string;
+}
+
+interface FormErrors {
+  title?: string;
+  description?: string;
+  expectedSolution?: string;
+  deadline?: string;
 }
 
 export default function CreateChallengeForm({
@@ -32,11 +39,12 @@ export default function CreateChallengeForm({
     deadline: "",
     deadlineDateTime: "",
   });
+
+  const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load challenge data if editing
+  // Load challenge data khi edit
   useEffect(() => {
     if (challengeId && accessToken) {
       const loadChallenge = async () => {
@@ -44,7 +52,6 @@ export default function CreateChallengeForm({
           setIsLoading(true);
           const challenge = await getChallengeDetail(challengeId, accessToken);
           
-          // Convert ISO string to datetime-local format
           const date = new Date(challenge.deadline);
           const deadlineDateTime = date.toISOString().slice(0, 16);
           
@@ -56,8 +63,7 @@ export default function CreateChallengeForm({
             deadlineDateTime,
           });
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : "Lỗi khi tải dữ liệu";
-          setError(errorMessage);
+          console.error(err);
         } finally {
           setIsLoading(false);
         }
@@ -66,65 +72,113 @@ export default function CreateChallengeForm({
     }
   }, [challengeId, accessToken]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  // Validate từng trường
+  const validateField = (name: keyof FormData, value: string) => {
+    const newErrors = { ...errors };
+
+    switch (name) {
+      case "title":
+        if (!value.trim()) {
+          newErrors.title = "Tên thử thách không được để trống";
+        } else if (value.trim().length < 5) {
+          newErrors.title = "Tên thử thách phải có ít nhất 5 ký tự";
+        } else if (!/[a-zA-ZÀ-ỹ]/.test(value)) {
+          newErrors.title = "Tên thử thách phải chứa ít nhất một chữ cái";
+        } else {
+          delete newErrors.title;
+        }
+        break;
+
+      case "deadlineDateTime":
+        if (!value) {
+          newErrors.deadline = "Hạn chót không được để trống";
+        } else {
+          const selectedDate = new Date(value);
+          const now = new Date();
+          now.setSeconds(0, 0); // So sánh chính xác hơn
+
+          if (selectedDate <= now) {
+            newErrors.deadline = "Hạn chót phải là thời điểm trong tương lai";
+          } else {
+            delete newErrors.deadline;
+          }
+        }
+        break;
+
+      case "description":
+        if (value.length > 1000) {
+          newErrors.description = "Mô tả không được vượt quá 1000 ký tự";
+        } else {
+          delete newErrors.description;
+        }
+        break;
+
+      case "expectedSolution":
+        if (value.length > 1000) {
+          newErrors.expectedSolution = "Giải pháp mong đợi không được vượt quá 1000 ký tự";
+        } else {
+          delete newErrors.expectedSolution;
+        }
+        break;
+    }
+
+    setErrors(newErrors);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
-    // Special handling for deadline input
+
     if (name === "deadlineDateTime") {
-      const isoString = new Date(value).toISOString();
+      const isoString = value ? new Date(value).toISOString() : "";
       setFormData((prev) => ({
         ...prev,
-        [name]: value,
+        deadlineDateTime: value,
         deadline: isoString,
       }));
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
-    setError(null);
+
+    // Validate realtime
+    validateField(name as keyof FormData, value);
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    validateField(name as keyof FormData, value);
   };
 
   const validateForm = (): boolean => {
-    if (!formData.title.trim()) {
-      setError("Tên thử thách không được để trống");
-      return false;
+    const newErrors: FormErrors = {};
+
+    if (!formData.title.trim() || formData.title.trim().length < 5 || !/[a-zA-ZÀ-ỹ]/.test(formData.title)) {
+      newErrors.title = "Tên thử thách không hợp lệ (ít nhất 5 ký tự và phải chứa chữ cái)";
     }
 
-    if (!formData.deadline) {
-      setError("Deadline không được để trống");
-      return false;
+    if (!formData.deadlineDateTime) {
+      newErrors.deadline = "Hạn chót không được để trống";
+    } else {
+      const selectedDate = new Date(formData.deadlineDateTime);
+      if (selectedDate <= new Date()) {
+        newErrors.deadline = "Hạn chót phải là thời điểm trong tương lai";
+      }
     }
 
-    const deadlineDate = new Date(formData.deadline);
-    const now = new Date();
-
-    if (deadlineDate <= now) {
-      setError("Deadline phải là một thời điểm trong tương lai");
-      return false;
-    }
-
-    return true;
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     if (!accessToken) {
-      setError("Token xác thực không tìm thấy. Vui lòng đăng nhập lại.");
+      setErrors({ title: "Token xác thực không tìm thấy. Vui lòng đăng nhập lại." });
       return;
     }
 
     try {
       setIsSubmitting(true);
-      setError(null);
 
       const payload: CreateChallengePayload = {
         title: formData.title.trim(),
@@ -132,8 +186,6 @@ export default function CreateChallengeForm({
         expectedSolution: formData.expectedSolution?.trim() || "",
         deadline: formData.deadline,
       };
-
-      console.log("📦 [CreateChallengeForm] Payload to send:", JSON.stringify(payload, null, 2));
 
       if (challengeId) {
         await updateChallenge(challengeId, payload, accessToken);
@@ -146,132 +198,140 @@ export default function CreateChallengeForm({
       onSuccess();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Có lỗi khi lưu thử thách";
-      console.error("❌ Error:", errorMessage);
-      setError(errorMessage);
+      setErrors({ title: errorMessage });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between">
+        <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between rounded-t-3xl">
           <h2 className="text-2xl font-bold text-slate-900">
             {challengeId ? "Chỉnh sửa thử thách" : "Tạo thử thách mới"}
           </h2>
           <button
             onClick={onClose}
             disabled={isSubmitting}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+            className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
           >
-            <X size={24} className="text-slate-600" />
+            <X size={26} className="text-slate-500" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
-              <AlertCircle size={20} className="text-red-600 mt-0.5 flex-shrink-0" />
-              <p className="text-red-700">{error}</p>
-            </div>
-          )}
-
+        {/* Form Content */}
+        <form onSubmit={handleSubmit} className="p-8 space-y-8 overflow-y-auto max-h-[calc(92vh-85px)]">
           {isLoading ? (
-            <div className="text-center py-8">
-              <div className="inline-block">
-                <div className="animate-spin">
-                  <div className="h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
-                </div>
-              </div>
-              <p className="text-slate-600 mt-3">Đang tải dữ liệu...</p>
+            <div className="text-center py-12">
+              <div className="animate-spin mx-auto h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full" />
+              <p className="text-slate-600 mt-4">Đang tải thông tin...</p>
             </div>
           ) : (
             <>
               {/* Title */}
               <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Tên thử thách <span className="text-red-600">*</span>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Tên thử thách <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
                   name="title"
                   value={formData.title}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   disabled={isSubmitting}
-                  placeholder="Ví dụ: Build Authentication System"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
+                  placeholder="Ví dụ: Xây dựng hệ thống Authentication"
+                  className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 transition-all
+                    ${errors.title ? "border-red-500 focus:ring-red-500" : "border-slate-300 focus:ring-blue-500"}`}
                 />
+                {errors.title && (
+                  <p className="text-red-600 text-sm mt-1.5 flex items-center gap-1">
+                    <AlertCircle size={16} /> {errors.title}
+                  </p>
+                )}
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Mô tả
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Mô tả</label>
                 <textarea
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   disabled={isSubmitting}
-                  placeholder="Mô tả chi tiết về thử thách, yêu cầu, và tiêu chí đánh giá"
                   rows={4}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:bg-slate-50 disabled:text-slate-500"
+                  placeholder="Mô tả chi tiết thử thách, yêu cầu và tiêu chí đánh giá..."
+                  className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 resize-none transition-all
+                    ${errors.description ? "border-red-500" : "border-slate-300 focus:ring-blue-500"}`}
                 />
+                {errors.description && (
+                  <p className="text-red-600 text-sm mt-1.5">{errors.description}</p>
+                )}
               </div>
 
               {/* Expected Solution */}
               <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Giải pháp mong đợi
-                </label>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">Giải pháp mong đợi</label>
                 <textarea
                   name="expectedSolution"
                   value={formData.expectedSolution}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   disabled={isSubmitting}
-                  placeholder="Mô tả giải pháp mong đợi, công nghệ cần sử dụng, v.v..."
                   rows={4}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:bg-slate-50 disabled:text-slate-500"
+                  placeholder="Mô tả giải pháp, công nghệ gợi ý, yêu cầu kỹ thuật..."
+                  className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 resize-none transition-all
+                    ${errors.expectedSolution ? "border-red-500" : "border-slate-300 focus:ring-blue-500"}`}
                 />
+                {errors.expectedSolution && (
+                  <p className="text-red-600 text-sm mt-1.5">{errors.expectedSolution}</p>
+                )}
               </div>
 
               {/* Deadline */}
               <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Hạn chót <span className="text-red-600">*</span>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Hạn chót <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="datetime-local"
                   name="deadlineDateTime"
                   value={formData.deadlineDateTime}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   disabled={isSubmitting}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
+                  className={`w-full px-4 py-3 border rounded-2xl focus:outline-none focus:ring-2 transition-all
+                    ${errors.deadline ? "border-red-500 focus:ring-red-500" : "border-slate-300 focus:ring-blue-500"}`}
                 />
+                {errors.deadline && (
+                  <p className="text-red-600 text-sm mt-1.5 flex items-center gap-1">
+                    <AlertCircle size={16} /> {errors.deadline}
+                  </p>
+                )}
               </div>
 
-              {/* Actions */}
-              <div className="flex gap-3 pt-4">
+              {/* Submit Buttons */}
+              <div className="flex gap-4 pt-6">
                 <button
                   type="button"
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 py-3.5 border border-slate-300 rounded-2xl font-medium hover:bg-slate-50 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-semibold transition-all disabled:opacity-70"
                 >
                   {isSubmitting
                     ? "Đang lưu..."
                     : challengeId
-                    ? "Cập nhật"
+                    ? "Cập nhật thử thách"
                     : "Tạo thử thách"}
                 </button>
               </div>

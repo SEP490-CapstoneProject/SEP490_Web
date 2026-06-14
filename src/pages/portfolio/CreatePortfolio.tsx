@@ -105,7 +105,7 @@ import {
 import {
   createExperienceOneDraft,
   type ExperienceOneDraft,
-  composeExperienceOneTime
+  composeExperienceOneTime,
 } from "@/pages/portfolio/editor/experienceOneDraft";
 import {
   createIntroOneDraft,
@@ -829,7 +829,6 @@ export default function CreatePortfolio() {
   // ── Scroll to block from component tab ────────────────────────────────────
 
   const handleScrollToBlock = (block: PortfolioBlock) => {
-    setActiveTab("template");
     setTimeout(() => {
       const el = document.getElementById(`block-${block.id}`);
       if (el) {
@@ -1854,7 +1853,7 @@ export default function CreatePortfolio() {
           {/* 2-column layout: sidebar left + preview center */}
           <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)] items-start">
             {/* ── Left sidebar ─────────────────────────────────────────────── */}
-            <aside className="rounded-2xl border border-slate-200 bg-white sticky top-4">
+            <aside className="rounded-2xl border border-slate-200 bg-white sticky top-4 max-h-[calc(100vh-32px)] overflow-hidden flex flex-col">
               {/* Tab bar */}
               <div className="flex border-b border-slate-200">
                 {!isEditMode && (
@@ -1862,7 +1861,7 @@ export default function CreatePortfolio() {
                     type="button"
                     onClick={() => setActiveTab("template")}
                     className={cn(
-                      "flex-1 px-3 py-2.5 text-sm font-semibold transition-colors",
+                      "p-3 flex-1 overflow-y-auto",
                       activeTab === "template"
                         ? "bg-blue-50 text-blue-600"
                         : "text-slate-500 hover:bg-slate-50",
